@@ -49,7 +49,7 @@ const NavBar = ({auth,status,hasVerifiedEmail}) => {
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Logo */}
           <Link onClick={handlelogoclick} className="flex-shrink-0">
-            <div className="font-bold text-2xl text-gray-800 xs-range:text-xl">
+            <div className="font-bold text-2xl text-gray-800 xs-range:text-xs">
               <span className="text-blue-500">m</span>
               <span>otom</span>
               <span className="text-blue-500">.</span>
@@ -61,8 +61,8 @@ const NavBar = ({auth,status,hasVerifiedEmail}) => {
           <div className="flex items-center flex-1 max-w-xl mx-4">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="rounded-r-none border-r-0 bg-blue-400 text-white hover:bg-blue-400 hover:text-white">
-                  <SlidersHorizontal className="h-4 w-4" />
+                <Button variant="outline" className="rounded-r-none border-r-0 bg-blue-400 text-white hover:bg-blue-400 hover:text-white xs-range:p-2">
+                  <SlidersHorizontal className="h-4 w-4 xs-range:h-2 xs-range:w-2" />
                   <span className="ml-2 hidden sm:inline">Filters</span>
                 </Button>
               </SheetTrigger>

@@ -180,43 +180,6 @@ class CarController extends Controller
     }
 
 
-
-
-// public function getCarsByBodyType(Request $request)
-// {
-//     $user = Auth::user();
-//     $bodyTypeId = $request->query('body_type');
-//     $sortBy = $request->query('sort', 'posted');
-
-//     $query = Car::with(['images', 'tags']);
-
-//     if ($bodyTypeId) {
-//         $query->where('body_type', $bodyTypeId);
-//     }
-
-//     // Fetch cars with sorting
-//     // $query = Car::with(['images', 'tags'])->where('body_type', $bodyTypeId);
-
-//     switch ($sortBy) {
-//         case 'price-low': $query->orderBy('price', 'asc'); break;
-//         case 'price-high': $query->orderBy('price', 'desc'); break;
-//         case 'year-new': $query->orderBy('year', 'desc'); break;
-//         case 'year-old': $query->orderBy('year', 'asc'); break;
-//         case 'mileage-low': $query->orderBy('mileage', 'asc'); break;
-//         case 'mileage-high': $query->orderBy('mileage', 'desc'); break;
-//         default: $query->latest(); break;
-//     }
-
-//     $cars = $query->get();
-
-//     return Inertia::render('car_body_type/CarsByBodyType', [
-//         'cars' => $cars,
-//         'totalResults' => $cars->count(),
-//         'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-//             ? $user->hasVerifiedEmail()
-//             : false,
-//     ]);
-// }
 public function getCarsByBodyType(Request $request)
 {
     $user = Auth::user();
@@ -224,7 +187,7 @@ public function getCarsByBodyType(Request $request)
     $brandName = $request->query('brand_name');
     $modelName = $request->query('model_name');
     $sortBy = $request->query('sort', 'posted'); // Get sort option, default to 'posted'
-
+    $price = $request->query('maxPrice');
     // Fetch cars with sorting
     $query = Car::with(['images', 'tags']);
 
@@ -285,8 +248,40 @@ public function getCarsByBodyType(Request $request)
                 ? $user->hasVerifiedEmail()
                 : false,
         ]);
+        
     }
+    elseif (!$brandName && !$modelName && !$bodyTypeId && $price) {
 
+        $user = Auth::user();
+    
+        // التحقق من إدخال سعر صالح
+        if ($price !== null && !is_numeric($price)) {
+            return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
+        }
+    
+        if ($price !== null) {
+            $price = (float) $price; // تحويل إلى رقم عشري لضمان صحة الحسابات
+    
+            // البحث عن السيارات ضمن نطاق السعر المحدد أو الأقرب إليه
+            $cars = Car::whereBetween('price', [$price - 500, $price + 500])
+                ->orderByRaw("ABS(price - ?)", [$price]) // ترتيب حسب أقرب سعر
+                ->limit(10)
+                ->with(['images', 'tags']) // جلب الصور والعلامات
+                ->get();
+        } else {
+            // في حالة عدم وجود سعر، جلب جميع السيارات
+            $cars = $query->get();
+        }
+    
+        return Inertia::render('Cars_By_Price/SearchResults', [
+            'cars' => $cars,
+            'totalResults' => $cars->count(),
+            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+                ? $user->hasVerifiedEmail()
+                : false,
+        ]);
+    }
+    
     // Default fallback if none of the conditions match
     // return redirect()->route('/'); // Or return a default view if needed
 }
@@ -335,6 +330,33 @@ public function getCarsByBrandModel($brand_name, $model_name)
         : false,
     ]);
 }
+public function searchByPrice(Request $request)
+{
+    $price = $request->query('maxPrice');
+    $user = Auth::user();
+    // تأكد من أن السعر مدخل كرقم صحيح وإلا استخدم قيمة افتراضية
+    if (!is_numeric($price)) {
+        return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
+    }
+
+    $price = (float) $price; // تحويل إلى رقم عشري لضمان صحة الحسابات
+
+    // البحث عن السيارات بالسعر المحدد أو الأقرب إليه
+    $cars = Car::whereBetween('price', [$price - 500, $price + 500])
+        ->orderByRaw("ABS(price - ?)", [$price]) // استخدام binding لمنع الأخطاء
+        ->limit(10)
+        ->with(['images', 'tags']) // جلب الصور والعلامات
+        ->get();
+
+    return Inertia::render('Cars_By_Price/SearchResults', ['cars' => $cars,
+            'totalResults' => $cars->count(),
+            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+                ? $user->hasVerifiedEmail()
+                : false,
+]);
+}
+
+
 
 }
 

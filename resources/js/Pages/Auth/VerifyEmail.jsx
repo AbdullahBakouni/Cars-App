@@ -1,5 +1,5 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/Components/ui/button';
 import { Head, Link, useForm } from '@inertiajs/react';
 

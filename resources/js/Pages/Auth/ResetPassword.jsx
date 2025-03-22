@@ -1,5 +1,5 @@
 import InputError from '@/Components/InputError';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Head, useForm } from '@inertiajs/react';
 import { Label } from "@/components/ui/label"
 import { Input } from '@/Components/ui/input';

@@ -21,11 +21,11 @@ export default {
     },
     extend: {
       screens: {
-       'xs-range': { 'min': '350px', 'max': '500px' },
+       'xs-range': { 'min': '320px', 'max': '500px' },
          // Custom breakpoint for extra small screens (480px)
          'sm-range': { 'min': '500px', 'max': '770px' },
          'xs-s-range' : {'min':'350px', 'max':'380px'},
-        // 'sm': '640px',  // Default sm breakpoint
+        // 'sx': '640px',  // Default sm breakpoint
         // 'md': '768px',  // Default md breakpoint
         // 'lg': '1024px', // Default lg breakpoint
         // 'xl': '1280px', // Default xl breakpoint

@@ -1,16 +1,16 @@
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Car,
   Truck,
   Bus,
   Package,
-} from "lucide-react"
-import carData from "./cars"
-import NavBar from "@/Components/NavBar"
-import { Inertia } from "@inertiajs/inertia"
+} from "lucide-react";
+import carData from "./cars";
+import NavBar from "@/Components/NavBar";
+import { Inertia } from "@inertiajs/inertia";
 
 
 export default function Welcome({auth , status , hasVerifiedEmail}) {
@@ -34,6 +34,19 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
  
   const handleBodyTypeClick = (typeId) => {
     Inertia.visit(route("cars.byBodyType", { body_type: typeId }));
+  };
+
+  const handleBrandNameClick = (brandName) => {
+    Inertia.visit(route("cars.byBodyType", { brand_name: brandName }));
+  };
+  const handleSearch = () => {
+    if (!maxPrice) return; // لا ترسل الطلب إذا لم يدخل المستخدم سعراً
+  console.log(maxPrice)
+    Inertia.visit(route('cars.byPrice'), {
+      method: 'get',
+      data: { maxPrice },
+      preserveState: true, // الاحتفاظ بحالة الصفحة
+    });
   };
   return (
     <>
@@ -86,19 +99,19 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
                 </label>
                 <Input
                   id="maxPrice"
-                  type="text"
+                  type="number"
                   className="w-full focus:outline-none focus:ring-0 focus:border-inherit"
                   value={maxPrice} 
                   onChange={(e) => setMaxPrice(e.target.value)}
                 />
               </div>
-              <Button className="bg-blue-500 hover:bg-blue-600 text-white px-8 h-10 mt-4 md:mt-6 xs-range:px-4">
+              <Button onClick={handleSearch} className="bg-blue-500 hover:bg-blue-600 text-white px-8 h-10 mt-4 md:mt-6 xs-range:px-4">
                 Search <span className="ml-1">→</span>
               </Button>
             </div>
           </div>
         </div>
-            {/* Body Type Section */}
+         
             
         {/* Right Bottom Dots */}
         <div className="absolute right-0 bottom-0 opacity-20">
@@ -117,6 +130,8 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
 
       </div>
     </div>
+
+       {/* Body Type Section */}
     <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
         {bodyTypes.map((type) => (
             <div key={type.id} className="flex flex-col items-center justify-center cursor-pointer"
@@ -127,6 +142,7 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
         ))}
       </div>
         </div>
+
                 <div className="pt-5">
                 <div className="mb-2 text-center">
                   <h2 className="text-lg font-bold text-gray-800 italic">FEATURED CARS</h2>
@@ -134,7 +150,7 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
                 </div>
               </div>
 
-      </main>
+  </main>
                 <div>
                 <div className="pt-4">
                 <div className="flex items-center mb-2">
@@ -149,7 +165,9 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-2">
                   {carData.data.slice(0, expandMakes ? carData.data.length : 10).map((brand) => (
-                    <div key={brand.id} className="flex flex-col items-center justify-center cursor-pointer">
+                    <div key={brand.id} className="flex flex-col items-center justify-center cursor-pointer"
+                    onClick={() => handleBrandNameClick(brand.name)}
+                    >
                       <div className="w-10 h-10 flex items-center justify-center mb-2">
                         <img
                           src={brand.image || "/placeholder.svg"}

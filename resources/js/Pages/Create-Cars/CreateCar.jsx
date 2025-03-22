@@ -2,7 +2,7 @@
 
 
 
-import { useState, useRef } from "react"
+import { useState, useRef } from "react";
 
 import {
   Car,
@@ -27,18 +27,18 @@ import {
   Building2,
   ImageIcon,
   Check,
-} from "lucide-react"
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { Head, useForm } from "@inertiajs/react"
-import carData from "../cars"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Head, useForm } from "@inertiajs/react";
+import carData from "../cars";
 
 
 

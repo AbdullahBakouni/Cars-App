@@ -43,6 +43,6 @@ Route::resource("car",CarController::class);
 
 Route::get('/cars/body-type', [CarController::class, 'getCarsByBodyType'])->name('cars.byBodyType');
 
-
+Route::get('/cars/byPrice', [CarController::class, 'searchByPrice'])->name('cars.byPrice');
 
 require __DIR__.'/auth.php';

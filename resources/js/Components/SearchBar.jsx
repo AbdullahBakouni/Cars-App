@@ -142,8 +142,15 @@ const SearchBar = () => {
               ) : models.length > 0 ? (
                 <div>
                   {/* "All Models" Header */}
-                  <div className="p-3 font-bold flex justify-between items-center bg-gray-100 border-b">
-                    <span>All Models</span>
+                  <div className="p-3 font-bold flex justify-between items-center hover:bg-gray-100 border-b cursor-pointer"
+                  
+                   onClick={() => Inertia.visit(route('cars.byBodyType', { brand_name: selectedBrand.name }))}
+                  >
+                  <span 
+                  className="cursor-pointer"
+                >
+                  All Models
+                </span>
                     {/* <span className="text-sm text-gray-600">{models.reduce((acc, model) => acc + model.count, 0)}</span> */}
                     <span className="text-sm text-gray-600">{models.length}</span>
                   </div>
@@ -153,7 +160,13 @@ const SearchBar = () => {
                     <div
                       key={index}
                       className="p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                      onClick={() => handleModelSelect(model)}
+                      onClick={() => {
+                        setSelectedModel(model);
+                        Inertia.visit(route('cars.byBodyType', { 
+                          brand_name: selectedBrand.name, 
+                          model_name: model.model 
+                        }));
+                      }}
                     >
                       <span>{model.model}</span>
                       <span className="text-sm text-gray-500">{model.count}</span>

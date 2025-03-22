@@ -5,22 +5,21 @@ import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Card, CardContent } from "@/components/ui/card";
-import NavBar from '@/Components/NavBar';
+import NavBar from '@/Components/NavBar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import { Label } from '@/Components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { Inertia } from '@inertiajs/inertia';
 
-const CarModel = ({auth,cars,totalResults,hasVerifiedEmail}) => {
+const SearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [sortDialogOpen, setSortDialogOpen] = useState(false)
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
    // Get body_type from URL
    const queryParams = new URLSearchParams(window.location.search);
-
    const sortoption = queryParams.get("sort");
    const [pendingSortOption, setPendingSortOption] = useState(sortoption || "posted");
-   
+   const price = queryParams.get("maxPrice");
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 300) {
@@ -34,10 +33,11 @@ const CarModel = ({auth,cars,totalResults,hasVerifiedEmail}) => {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
   const applySorting = () => {
+
     setSortDialogOpen(false);
+
     Inertia.visit(route('cars.byBodyType', { 
-      brand_name:cars[0].brand,
-      model_name:cars[0].model, 
+      maxPrice : price,
       sort: pendingSortOption 
     }), { preserveState: true });
   };
@@ -69,21 +69,21 @@ const getSortLabel = (value) => {
     };
   return (
     <>
-    <Head title={cars.length > 0 ? cars[0].model : "No Cars"} />
+    <Head title={cars.length > 0 ? cars.price : "No Cars"} />
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
      <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail}/>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-  {cars.length === 0 ? (
+      <main className="container mx-auto px-4 py-6 xs-range:px-2 xs-range:py-3">
+    {cars.length === 0 ? (
     // Display message if no cars are available
     <div className="flex justify-center items-center h-64 text-lg text-gray-500">
       <p>There are no cars yet</p>
     </div>
   ) : (
     // Display the list of cars if available
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sx:grid-cols-2">
+    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {cars.map((car) => (
         <Card key={car.id} className="overflow-hidden hover:shadow-md transition-shadow">
           <div className="relative aspect-[4/3] bg-gray-100">
@@ -99,7 +99,7 @@ const getSortLabel = (value) => {
                 <Eye  className="w-4 h-4 text-gray-500" />
                 </button>
           </div>
-          <CardContent className="p-3">
+          <CardContent className="p-2">
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-medium text-lg">
                 {car.year} {car.brand} {car.model}
@@ -139,8 +139,8 @@ const getSortLabel = (value) => {
   )}
 
    {/* Sticky Footer */}
-   <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t shadow-md h-[42px]">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+   <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t shadow-md xs-range:sticky h-[42px]">
+        <div className="container mx-auto px-1 py-1 flex justify-between items-center">
           <Button variant="outline" className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white hover:text-white
           -mt-3" onClick={() => setSortDialogOpen(true)}>
             <ArrowDownWideNarrow className="h-4 w-4" />
@@ -248,7 +248,7 @@ const getSortLabel = (value) => {
 
       {/* Sell button */}
       <Button
-        className="fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full px-8 py-6 bg-blue-500 hover:bg-blue-600 shadow-lg flex items-center justify-center z-50 md:left-auto md:right-6 md:bottom-24"
+        className="fixed bottom-6 xs-range:bottom-16 left-1/2 transform -translate-x-1/2 rounded-full px-8 py-6 bg-blue-500 hover:bg-blue-600 shadow-lg flex items-center justify-center z-50 md:left-auto md:right-6 md:bottom-24"
         aria-label="Sell"
         onClick={handleSellCarClick}
       >
@@ -259,4 +259,4 @@ const getSortLabel = (value) => {
   )
 }
 
-export default CarModel
+export default SearchResults

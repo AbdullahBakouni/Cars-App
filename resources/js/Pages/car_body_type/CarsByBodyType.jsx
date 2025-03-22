@@ -1,15 +1,15 @@
-import { Head } from '@inertiajs/react'
-import { useState, useEffect } from "react"
-import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn} from "lucide-react"
+import { Head } from '@inertiajs/react';
+import { useState, useEffect } from "react";
+import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn} from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 
-import { Card, CardContent } from "@/components/ui/card"
-import NavBar from '@/Components/NavBar'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog'
-import { Label } from '@/Components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group'
-import { Inertia } from '@inertiajs/inertia'
+import { Card, CardContent } from "@/components/ui/card";
+import NavBar from '@/Components/NavBar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
+import { Label } from '@/Components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
+import { Inertia } from '@inertiajs/inertia';
 
 const CarsByBodyType = ({auth,cars,totalResults,hasVerifiedEmail}) => {
   const [showScrollButton, setShowScrollButton] = useState(false)
@@ -137,10 +137,10 @@ const getSortLabel = (value) => {
   )}
 
    {/* Sticky Footer */}
-   <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t shadow-md">
+   <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t shadow-md h-[42px]">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Button variant="outline" className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white hover:text-white
-          " onClick={() => setSortDialogOpen(true)}>
+          -mt-3" onClick={() => setSortDialogOpen(true)}>
             <ArrowDownWideNarrow className="h-4 w-4" />
             <span>{sortoption ? getSortLabel(sortoption) : "Posted"}</span>
 
