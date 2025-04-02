@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('company', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('company_name');
+            $table->string('company_name')->nullable();
             $table->string('logo_path');
+            $table->decimal('rates', 3, 2)->default(0);
+            $table->string('location')->nullable();
             $table->timestamps();
         });
     }

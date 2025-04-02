@@ -11,13 +11,16 @@ import {
 import carData from "./cars";
 import NavBar from "@/Components/NavBar";
 import { Inertia } from "@inertiajs/inertia";
+import { usePage } from "@inertiajs/react";
+
+
 
 
 export default function Welcome({auth , status , hasVerifiedEmail}) {
- 
-  const [maxPrice, setMaxPrice] = useState("")
-  const [expandMakes, setExpandMakes] = useState(false)
-
+  const [maxPrice, setMaxPrice] = useState("");
+  const [expandMakes, setExpandMakes] = useState(false);
+  const { currency } = usePage().props;
+  
   const bodyTypes = [
     { id: "coupe", label: "COUPE", icon: <Car className="w-6 h-6" /> },
     { id: "sedan", label: "SEDAN", icon: <Car className="w-6 h-6" /> },
@@ -30,6 +33,56 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
     { id: "other", label: "OTHER", icon: <Package className="w-6 h-6" /> },
   ]
   
+const carCategories = [
+  {
+    id: 1,
+    name: "Economy",
+    description: "affordable aconomy cars.",
+    image: "/images/economy.jpg",
+  },
+  {
+    id: 2,
+    name: "Family",
+    description: "affordable family cars.",
+    image: "/images/family.jpg",
+  },
+  {
+    id: 3,
+    name: "Elecrtic",
+    description: "affordable electric cars.",
+    image: "/images/electric.jpg",
+  },
+  {
+    id: 4,
+    name: "Luxury",
+    description: "affordable luxury cars.",
+    image: "/images/luxuary.jpg",
+  },
+  {
+  id: 5,
+  name: "Sport",
+  description: "affordable sport cars.",
+  image: "/images/sport.jpg",
+  },
+  {
+    id: 6,
+    name: "SuperCars",
+    description: "high-end sport cars.",
+    image: "/images/supercar.jpg",
+    },
+    {
+      id: 7,
+      name: "Adventure",
+      description: "affordable adventure cars.",
+      image: "/images/adventure.jpg",
+      },
+      {
+        id: 8,
+        name: "Utility",
+        description: "affordable utility cars.",
+        image: "/images/utility.jpg",
+        },
+]
 
  
   const handleBodyTypeClick = (typeId) => {
@@ -41,18 +94,21 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
   };
   const handleSearch = () => {
     if (!maxPrice) return; // لا ترسل الطلب إذا لم يدخل المستخدم سعراً
-  console.log(maxPrice)
-    Inertia.visit(route('cars.byPrice'), {
+    Inertia.visit(route('cars.byBodyType'), {
       method: 'get',
-      data: { maxPrice },
+      data: { maxPrice , currency: currency === null ? 'SYP' : currency },
       preserveState: true, // الاحتفاظ بحالة الصفحة
     });
+  };
+
+  const handleCategoryClick = (categoryName) => {
+    Inertia.visit(route('cars.byBodyType', { category: categoryName }));
   };
   return (
     <>
     <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
-     <NavBar auth = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail}/>
+     <NavBar auth = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail} currency = {currency}/>
 
       {/* Main Content */}
       <main className="md:flex-1 relative overflow-hidden">
@@ -62,7 +118,7 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
             {Array(24)
               .fill(0)
               .map((_, i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-blue-400"></div>
+                <div key={i} className="w-1 h-1 rounded-full bg-blue-400"></div>
               ))}
           </div>
         </div>
@@ -94,9 +150,15 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
           sm-range:p-3 sm-range:max-w-2xl xs-range:max-w-xl">
             <div className="flex flex-row items-center gap-4">
               <div className="flex-1">
-                <label htmlFor="maxPrice" className="block text-sm font-medium text-gray-700 mb-1 xs-range:text-xs">
-                  Maximum price in SYP
+              {currency === "SYP" || currency === null ? (
+                <label htmlFor="maxPrice" className="block text-sm font-medium text-gray-600 mb-1 xs-range:text-xs">
+                    Maximum price in SYP
                 </label>
+            ) : (
+                <label htmlFor="maxPrice" className="block text-sm font-medium text-gray-600 mb-1 xs-range:text-xs">
+                    Maximum price in USD
+                </label>
+            )}
                 <Input
                   id="maxPrice"
                   type="number"
@@ -119,15 +181,14 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
             {Array(24)
               .fill(0)
               .map((_, i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-blue-600"></div>
+                <div key={i} className="w-1 h-1 rounded-full bg-blue-600"></div>
               ))}
           </div>
         </div>
         <div className="pt-6 border-t">
         <div className="flex items-center mb-2">
-      <h2 className="text-sm font-semibold text-gray-700 ml-1">BODY TYPE</h2>
+      <h2 className="text-sm font-bold text-gray-700 ml-1">BODY TYPE</h2>
       <div className="ml-2 h-px bg-gray-300 flex-grow">
-
       </div>
     </div>
 
@@ -150,13 +211,14 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
                 </div>
               </div>
 
-  </main>
+    </main>
+
                 <div>
                 <div className="pt-4">
                 <div className="flex items-center mb-2">
-                  <h2 className="text-sm font-semibold text-gray-700 italic mr-2 ml-1">MAKE</h2>
+                  <h2 className="text-sm font-bold text-gray-700 italic mr-2 ml-1">MAKE</h2>
                   <button
-                    className="text-xs text-blue-500 hover:text-blue-600"
+                    className="text-xs text-blue-500 hover:text-blue-600 font-semibold"
                     onClick={() => setExpandMakes(!expandMakes)}
                   >
                     {expandMakes ? "Collapse" : "Expand"}
@@ -183,6 +245,37 @@ export default function Welcome({auth , status , hasVerifiedEmail}) {
                 </div>
               </div>
                 </div>
+
+        <div className="container mx-auto p-4">
+      {/* Car Categories Section */}
+      <div className="pt-6">
+        <div className="flex items-center mb-2">
+          <h2 className="text-sm font-bold text-gray-700 italic mr-2 ml-1">CATEGORIES</h2>
+          <div className="ml-2 h-px bg-gray-300 flex-grow"></div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sx:grid-cols-2">
+          {carCategories.map((category) => (
+            <div key={category.id} className="overflow-hidden cursor-pointer bg-gray-50 rounded-md hover:shadow-lg"
+            onClick={() => handleCategoryClick(category.name)}
+            >
+              <div className="relative">
+                <div className="aspect-[4/3] w-full">
+                  <img
+                    src={category.image || "/placeholder.svg"}
+                    alt={category.name}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+              </div>
+              <div className="p-3 text-center">
+                <h3 className="font-semibold text-gray-800">{category.name}</h3>
+                <p className="text-xs text-gray-500">{category.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
     </div>
     
   </>

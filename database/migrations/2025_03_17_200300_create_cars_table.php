@@ -15,19 +15,23 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('company_id')->nullable()->constrained("company")->onDelete('set null');
-            $table->string('title');
-            $table->text('description')->nullable();
+            $table->text('description');
             $table->string('brand');
             $table->string('model');
-            $table->string('body_type')->nullable();
+            $table->string('body_type');
+            $table->integer('mileage');
+            $table->enum('currency', ['SYP', 'USD'])->default('SYP');
+            $table->enum('status', ['sell', 'rent','rented','sold'])->default('sell');
+            $table->decimal('rates', 3, 2)->default(0);
+            $table->integer('engine')->nullable();
             $table->string('color')->nullable();
             $table->string('location');
             $table->integer('year');
             $table->string('doors');
             $table->string('cylinders');
             $table->string('transmission');
-            $table->string('fuel');
-            $table->decimal('price', 10, 2);
+            $table->string('fuel')->nullable();
+            $table->decimal('price', 15, 2);
             $table->timestamps();
         });
     }

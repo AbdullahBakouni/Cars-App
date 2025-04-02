@@ -299,6 +299,14 @@
       },
       {
         id: 38,
+        name: "Mercedes-Benz",
+        image: "/images/amg.png",
+        models: [
+          
+        ]
+      },
+      {
+        id: 39,
         name: "Nissan",
         image: "/images/nissan.png",
         models: [
@@ -306,7 +314,7 @@
         ]
       },
       {
-        id: 39,
+        id: 40,
         name: "Opel",
         image: "/images/opel.png",
         models: [
@@ -314,7 +322,7 @@
         ]
       },
       {
-        id: 40,
+        id: 41,
         name: "Puegeot",
         image: "/images/peugeot.png",
         models: [
@@ -322,7 +330,7 @@
         ]
       },
       {
-        id: 41,
+        id: 42,
         name: "Porsche",
         image: "/images/porsche.png",
         models: [
@@ -330,7 +338,7 @@
         ]
       },
       {
-        id: 42,
+        id: 43,
         name: "Renault",
         image: "/images/renault.png",
         models: [
@@ -338,7 +346,7 @@
         ]
       },
       {
-        id: 43,
+        id: 44,
         name: "Rolls-Royce",
         image: "/images/Rolls.png",
         models: [
@@ -346,7 +354,7 @@
         ]
       },
       {
-        id: 44,
+        id: 45,
         name: "Skoda",
         image: "/images/skoda.png",
         models: [
@@ -354,7 +362,7 @@
         ]
       },
       {
-        id: 45,
+        id: 46,
         name: "Subaru",
         image: "/images/subaru.png",
         models: [
@@ -362,7 +370,7 @@
         ]
       },
       {
-        id: 46,
+        id: 47,
         name: "Suzuki",
         image: "/images/suzuki.png",
         models: [
@@ -370,7 +378,7 @@
         ]
       },
       {
-        id: 47,
+        id: 48,
         name: "Seat",
         image: "/images/seat.png",
         models: [
@@ -378,7 +386,7 @@
         ]
       },
       {
-        id: 48,
+        id: 49,
         name: "Toyota",
         image: "/images/toyota.png",
         models: [
@@ -386,7 +394,7 @@
         ]
       },
       {
-        id: 49,
+        id: 50,
         name: "Tesla",
         image: "/images/tesla.png",
         models: [
@@ -394,7 +402,7 @@
         ]
       },
       {
-        id: 50,
+        id: 51,
         name: "Volvo",
         image: "/images/volvo.jpg",
         models: [
@@ -402,7 +410,7 @@
         ]
       },
       {
-        id: 51,
+        id: 52,
         name: "VolksWagen",
         image: "/images/volkswagen.png",
         models: [

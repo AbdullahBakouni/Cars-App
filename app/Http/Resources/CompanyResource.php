@@ -18,6 +18,7 @@ class CompanyResource extends JsonResource
         return [
             'id' => $this->id,
             'logo_url' => asset('storage/' . $this->logo_path),
+            'rates' => $this->rates,
             'cars' => CarResource::collection($this->whenLoaded('cars')),
             'user' => new UserResource($this->whenLoaded('user')),
         ];

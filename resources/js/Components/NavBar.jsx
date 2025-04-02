@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "./ui/input"
 import SearchBar from "./SearchBar"
 import { useState } from "react"
-import { Inertia } from "@inertiajs/inertia"
-const NavBar = ({auth,status,hasVerifiedEmail}) => {
+const NavBar = ({auth,status,hasVerifiedEmail,currency}) => {
 
   const [selectedBodyTypes, setSelectedBodyTypes] = useState("")
   const [location, setLocation] = useState("uae")
@@ -40,15 +39,12 @@ const NavBar = ({auth,status,hasVerifiedEmail}) => {
     { id: "commercial", label: "Commercial", icon: <Truck className="w-6 h-6" /> },
     { id: "other", label: "Other", icon: <Package className="w-6 h-6" /> },
   ]
-  const handlelogoclick = () => {
-    Inertia.visit(route("main"));
-  }
   return (
     <>
         <header className="sticky top-0 z-50 w-full border-b bg-white xs-range:mb-2 shadow-lg">
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Logo */}
-          <Link onClick={handlelogoclick} className="flex-shrink-0">
+          <Link href="/" className="flex-shrink-0">
             <div className="font-bold text-2xl text-gray-800 xs-range:text-xs">
               <span className="text-blue-500">m</span>
               <span>otom</span>
@@ -190,11 +186,11 @@ const NavBar = ({auth,status,hasVerifiedEmail}) => {
           </div>
 
           {/* Menu Button with Sheet (visible on larger screens) */}
-          <MainMenu authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail} />
+          <MainMenu authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail} currency = {currency}/>
           
            
           {/* Hamburger Menu (visible on smaller screens) */}
-          <HamburgerMenu  authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail}/>
+          <HamburgerMenu  authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail}  currency = {currency}/>
         </div>
       </header>
     </>

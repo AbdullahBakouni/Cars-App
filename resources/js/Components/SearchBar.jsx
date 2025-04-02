@@ -57,19 +57,32 @@ const SearchBar = () => {
         setIsDropdownOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
+  useEffect(() => {
+    if (searchTerm === '') {
+      // If input is cleared, reset to brand list
+      setSelectedBrand(null);
+      setModels([]);
+      setSelectedModel(null);
+    } else if (selectedBrand && searchTerm !== selectedBrand.name) {
+      // If user edits the input, filter brands dynamically
+      setSelectedBrand(null);
+      setModels([]);
+      setSelectedModel(null);
+    }
+  }, [searchTerm]);
+  
   const handleBrandSelect = (brand) => {
     setSelectedBrand(brand);
-    setSearchTerm(brand.name);
-    setModels([]); // Set the search term to the selected brand's name
-    fetchModels(brand.name);
-    setSelectedModel(null); // Fetch models for the selected brand
+    setSearchTerm(brand.name); // Display brand name in input
+    setModels([]); // Reset models
+    fetchModels(brand.name); // Fetch models for selected brand
+    setSelectedModel(null); 
+    setIsDropdownOpen(true); // Fetch models for the selected brand
 
   };
 
@@ -84,6 +97,9 @@ const SearchBar = () => {
   const handleBackToMainBrands = () => {
     setSelectedBrand(null); // Reset selected brand
     setSearchTerm(''); // Reset search term
+    setModels([]); // Clear models list
+    setSelectedModel(null); // Reset selected model
+    setIsDropdownOpen(true);
   };
 
   return (

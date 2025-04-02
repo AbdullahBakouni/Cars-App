@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserCircle2, Languages, ArrowLeft } from "lucide-react";
+import { UserCircle2, Languages, ArrowLeft, CircleDollarSign } from "lucide-react";
 
 
 import LoggedInMenuContent from "@/components/LoggedInMenuContent";
@@ -11,13 +11,19 @@ import Login from "@/Pages/Auth/Login";
 import ForgotPassword from "@/components/ForgotPassword";
 
 import { Inertia } from '@inertiajs/inertia';
+import { router } from "@inertiajs/react";
 
 
-const MainMenu = ({ authuser , status , hasVerifiedEmail}) => {
+const MainMenu = ({ authuser , status , hasVerifiedEmail , currency}) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showForgetPassword, setShowForgetPassword] = useState(false);
- 
+ // The login state (false means logged out)
+
+// Show the menu and login content by default if login === false
+  const handleCurrencyChange = (value) => {
+    router.get(route("setCurrency"), { currency: value }, { preserveState: true, preserveScroll: true });
+};
   const handleForgetPasswordClick = () => {
     setShowForgetPassword(true);
   };
@@ -38,7 +44,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail}) => {
   };
   return (
     <>
-      <Sheet>
+      <Sheet >
         <SheetTrigger asChild>
           <Button variant="outline" className="hidden md:inline-flex">
             Menu
@@ -54,14 +60,14 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail}) => {
                     ? "ACCOUNT"
                     : showRegisterForm
                     ? "REGISTER"
-                    : showLoginForm
+                    : showLoginForm 
                     ? "LOGIN"
                     : "MENU"}
                 </h2>
               </div>
             </div>
             {authuser.user && hasVerifiedEmail ? (
-          <LoggedInMenuContent />
+          <LoggedInMenuContent currency = {currency}/>
       ) : authuser.user && hasVerifiedEmail ? (
         <div className="flex-1 overflow-auto p-4">
           <p className="font-bold text-lg mb-8">Please verify your email to proceed.</p>
@@ -150,7 +156,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail}) => {
             </div>
           </div>
         ) : (
-          <div className="space-y-9">
+          <div className="space-y-10">
             <Button
               variant="ghost"
               className="w-full justify-start text-base font-normal"
@@ -160,9 +166,9 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail}) => {
               Login / Register
             </Button>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Languages className="h-5 w-5" />
+                <Languages className="h-5 w-5 ml-4 mr-3" />
                 <span className="text-sm">Language</span>
               </div>
               <Select defaultValue="en">
@@ -175,9 +181,25 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail}) => {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+              <CircleDollarSign className="h-5 w-5 ml-4 mr-3" />
+                <span className="text-sm">Currency</span>
+              </div>
+              <Select onValueChange={handleCurrencyChange} defaultValue={currency ?? "SYP"}>
+                <SelectTrigger className="w-full">
+                <SelectValue placeholder={currency === null ? "SYP" : currency} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="SYP">SYP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
            
             <div className="absolute bottom-0 w-[350px]">
-              <div className="mt-auto p-6">
+              <div className="mt-auto p-2">
                          <Button className="w-full bg-blue-400 hover:bg-blue-500 text-white text-lg py-6"
                           onClick={handleSellCarClick}>
                           SELL YOUR CAR

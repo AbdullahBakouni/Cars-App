@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Tag extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'car_id'];
+    protected $fillable = ['name', 'car_id','name'];
     
     public function car(): BelongsTo
     {

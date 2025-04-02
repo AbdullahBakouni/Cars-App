@@ -44,6 +44,7 @@ import { Dialog, DialogContent } from "@/Components/ui/dialog";
 
 
 
+
 const bodyTypes = [
   { value: "coupe", label: "Coupe", icon: Coupe },
   { value: "sedan", label: "Sedan", icon: Sedan },
@@ -75,93 +76,131 @@ const colorOptions = [
   { value: "beige", label: "Beige", hex: "#F5F5DCC" },
 ]
 
-export default function CreateCar({auth,hasVerifiedEmail}) {
-  const { data, setData, post,errors,processing } = useForm({
-    title:'',
-    description: '',
-    brand: '',
-    model: '',
-    year:  '',
-    location:  '',
-    price: '',
-    phone: '',
-    whatsapp:  '',
-    company_name: '',
-    company_location: '',
-    company_logo:  null,
-    body_type: '',
-    mileage: '',
-    currency: '',
-    status: '',
-    doors: '',
-    cylinders:  '',
-    engine: '',
-    transmission:  '',
-    fuel: '',
-    color: '',
-    images:[],
-    tags: [],
+export default function Update({auth,car,hasVerifiedEmail}) {
+  const { data, setData, post, errors, processing } = useForm({
+    title: car?.title || "",
+    description: car?.description || "",
+    brand: car?.brand || "",
+    model: car?.model || "",
+    year: car?.year?.toString() || "",
+    location: car?.location || "",
+    price: car?.price || "",
+    phone: car?.user?.phone || "",
+    whatsapp: car?.user?.whatsapp || "",
+    company_name: car?.company?.company_name || "",
+    company_location: car?.company?.location || "",
+    company_logo: null,
+    body_type: car?.body_type || "",
+    mileage: car?.mileage || "",
+    currency: car?.currency || "",
+    status: car?.status || "",
+    doors: car?.doors?.toString() || "",
+    cylinders: car?.cylinders?.toString() || "",
+    engine: car?.engine || "",
+    transmission: car?.transmission?.toString() || "",
+    fuel: car?.fuel?.toLowerCase() || "",
+    color: car?.color || "",
+    images: car?.images || [],
+    new_images: [],
+    removed_images: [],
+    tags: car?.tags || [],
+    removed_tags:[],
+    _method: "PUT",
 });
+    
     const [images, setImages] = useState([]);
     const [imageUrls, setImageUrls] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
+    const [selectedFuel, setSelectedFuel] = useState(null);
+    const [tags, setTags] = useState([]);
+    const [model, setModel] = useState("");
+    const [year, setYear] = useState("");
     const [tagInput, setTagInput] = useState("");
     const [selectedBodyType, setSelectedBodyType] = useState("");
     const [IsElectric, setIsElectric] = useState("");
     const [selectedColor, setSelectedColor] = useState("");
     const [companyLogo, setCompanyLogo] = useState(null);
     const [companyLogoUrl, setCompanyLogoUrl] = useState("")
-    
+    const [isButtonDisabled, setIsButtonDisabled] = useState(false);
     const [currency, setCurrency] = useState("SYP");
+    const [previousEngine, setPreviousEngine] = useState("");
+    const [previousFuel, setPreviousFuel] = useState("");
     const fileInputRef = useRef(null);
     const companyLogoInputRef = useRef(null);
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+    const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const isElectric = data.cylinders === "Electric";
- 
+  useEffect(() => {
+    if (!car) return;
 
-  const submit = (e) => {
-    e.preventDefault();
-    
-    if(auth.user && hasVerifiedEmail){
-      post(route("car.store"));
-    }
-     else{
-      setLoginDialogOpen(true)
-     }
-  };
+    setData((prevData) => ({
+        ...prevData,
+        title: car.title,
+        description: car.description,
+        brand: car.brand,
+        year: car.year.toString(),
+        currency: car.currency,
+        body_type: car.body_type,
+        doors: car.doors.toString(),
+        cylinders: car.cylinders.toString(),
+        transmission: car.transmission.toString(),
+        fuel: car.fuel.toLowerCase(),
+        color: car.color,
+        tags: car.tags,
+        company_name: car.company?.company_name ?? "",
+        company_location: car.company?.location ?? "",
+        status: car.status,
+    }));
+    setSelectedBodyType(car.body_type || null);
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    setData("images", [...data.images, ...files]);
-
-    const urls = files.map((file) => URL.createObjectURL(file));
-    setImageUrls([...imageUrls, ...urls]);
+    setSelectedColor(car.color || null);
+    if (!companyLogoUrl) {
+      setCompanyLogoUrl(car.company?.logo_path ? `/storage/${car.company.logo_path}` : null);
   }
 
-  
+    if (car.images && car.images.length > 0) {
+      setImageUrls(
+        car.images.map((img) => ({
+            id: img.id, // Keep the image ID
+            url: `/storage/${img.image_path}`, // Construct the full URL
+        }))
+    );
+    }
+}, [car]);
+
+const handleImageUpload = (e) => {
+  const files = Array.from(e.target.files);
+  const urls = files.map((file) => URL.createObjectURL(file));
+
+   const newImages = files.map((file, index) => ({
+    id: Date.now() + index,  // A simple way to generate a unique ID based on timestamp and index
+    url: urls[index], 
+    file: file,
+    isNew: true,         // The generated URL for the image preview
+  }));
+
+  // Update the imageUrls state by appending the new images to the existing ones
+  setImageUrls((prev) => [...prev, ...newImages]);
+  setData("new_images", [...data.new_images, ...files]);
+};
     const handleCompanyLogoUpload = (e) => {
       if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-    
-        // Update `company_logo` in `useForm` data
-        setData("company_logo", file);
-    
-        // Revoke previous URL to prevent memory leaks
-        if (companyLogoUrl) {
-          URL.revokeObjectURL(companyLogoUrl);
-        }
-        const url = URL.createObjectURL(file);
-        setCompanyLogoUrl(url);
+          const file = e.target.files[0];
+
+          setData("company_logo", file);
+
+          if (companyLogoUrl) {
+              URL.revokeObjectURL(companyLogoUrl);
+          }
+          setCompanyLogoUrl(URL.createObjectURL(file));
       }
-    }
-  
+    };
     const removeCompanyLogo = () => {
       if (companyLogoUrl) {
-        URL.revokeObjectURL(companyLogoUrl)
+          URL.revokeObjectURL(companyLogoUrl);
       }
-      setCompanyLogo(null)
-      setCompanyLogoUrl("")
-    }
+      setCompanyLogoUrl(null);
+      setData("company_logo", null);
+    };
   
     const handleDragOver = (e) => {
       e.preventDefault()
@@ -199,29 +238,54 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
         setCompanyLogoUrl(url)
       }
     }
-  
-    const removeImage = (index) => {
-      // Revoke the URL to prevent memory leaks
-      URL.revokeObjectURL(imageUrls[index]);
-    
-      // Remove the image from the preview list
+    const removeImage = (index,imageId) => {
+      const image = imageUrls[index];
+      if (image.isNew === true) {
+        // If it's a new image, just remove it from the UI and new_images state
+        setData(prevData => {
+          const newImages = prevData.new_images.filter((file) => file !== image.file);
+          return {
+            ...prevData,
+            new_images: newImages
+          };
+        }
+      );
+      } else {
+              setData("removed_images", [...data.removed_images, imageId]);
+          }
+      
+
+      // Remove from the imageUrls state (UI state)
       setImageUrls((prev) => prev.filter((_, i) => i !== index));
-    
-      // Remove the image from the `useForm` data
-      const updatedImages = data.images.filter((_, i) => i !== index);
-      setData("images", updatedImages); // Update the `images` field in `useForm`
-    }
+    };
   
     const handleTagAdd = () => {
-      if (tagInput && !data.tags.includes(tagInput)) {
-        setData("tags", [...data.tags, tagInput]) // Add the tag to `data.tags`
-        setTagInput('') // Clear input after adding
+      if (tagInput.trim() && !data.tags.some(tag => tag.name === tagInput)) {
+        const newTag = {
+          id: Date.now(), // Temporary unique ID
+          name: tagInput.trim(), // Store the tag name
+          isNew: true // Mark it as new (optional)
+        };
+    
+        setData("tags", [...data.tags, newTag]); // Add to the tags list
+        setTagInput(""); // Clear input
       }
-    }
+    };
   
-    const removeTag = (tag) => {
-        setData("tags", data.tags.filter(t => t !== tag)) // Remove tag from `data.tags`
-    }
+    const removeTag = (tagId) => {
+      const tagToRemove = data.tags.find(tag => tag.id === tagId);
+    
+      if (tagToRemove) {
+        if (!tagToRemove.isNew) {
+          // If it's an existing tag, add to removed_tags
+          setData("removed_tags", [...data.removed_tags, tagId]);
+        }
+    
+        // Remove from the tags list
+        setData("tags", data.tags.filter(tag => tag.id !== tagId));
+      }
+    };
+    
   
     const handleTagKeyDown = (e) => {
       if (e.key === "Enter") {
@@ -290,9 +354,36 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
   
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: currentYear - 1970 + 1 }, (_, i) => currentYear - i);
+
+    useEffect(() => {
+      // Compare the length of removed_images with car.images
+      if (data.removed_images.length === car.images.length - 1) {
+        setIsButtonDisabled(true);  // Disable the button if removed_images is greater than or equal to car.images
+      } else {
+        setIsButtonDisabled(false); // Enable the button otherwise
+      }
+    }, [data.removed_images, car.images.length]);
+
+const submit = (e) => {
+    e.preventDefault(); // Prevent default form submission
+      if(auth.user && hasVerifiedEmail){
+        post(route("car.update", { id: car.id }), {
+          onError: (errors) => {
+              if (errors.company_logo) {
+                  console.log("Validation failed, keeping previous logo");
+                  setCompanyLogoUrl(car.company?.logo_path ? `/storage/${car.company.logo_path}` : null);
+              }
+          },
+      });
+      }
+      else{
+        setLoginDialogOpen(true);
+      }
+      
+};
   return (
     <>
-    <Head title={"Sell Your Car"} />
+    <Head title={"Update Your Car" } />
     <div className="bg-gray-100 xs-s-range:min-h-[334vh] xs-range:text-xs w-full xs-range:min-h-[270vh] min-h-screen">
       <div className="max-w-4xl mx-auto p-4 space-y-8 xs-range:p-2 xs-range:space-y-0 xs-range:max-w-[400px] xs-range:h-full overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col items-center justify-center space-y-2 mb-8 xs-range:mb-4">
@@ -303,11 +394,12 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
               </span>
             </div>
           </div>
-          <h1 className="text-xl md:text-2xl font-bold text-center">Sell Your Car</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-center">Update Your Car Details</h1>
         </div>
 
         {/* Image Upload Section */}
-        <form onSubmit={submit} className="xs-range:text-xs xs-range:space-y-2" name="form-to-create-car">
+        <form onSubmit={submit} className="xs-range:text-xs xs-range:space-y-2"  name="form-to-create-car"
+        encType="multipart/form-data" >
         <div className="space-y-4">
           <Label htmlFor="images">Car Images</Label>
           <div
@@ -333,28 +425,30 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
 
           {/* Image Preview */}
           {imageUrls.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-                {imageUrls.map((url, index) => (
-                <div key={index} className="relative group">
-                  <div className="aspect-square rounded-md overflow-hidden border">
-                    <img
-                      src={url || "/placeholder.svg"}
-                      alt={`Car image ${index + 1}`}
-                      width={200}
-                      height={200}
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                  <button
-                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => removeImage(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+          {imageUrls.map((image, index) => ( // `image` is now the object with `id` and `url`
+            <div key={image.id} className="relative group">
+              <div className="aspect-square rounded-md overflow-hidden border">
+                <img
+                  src={image.url || "/placeholder.svg"} // Use `image.url`
+                  alt={`Car image ${index + 1}`}
+                  width={200}
+                  height={200}
+                  className="object-cover w-full h-full"
+                />
+              </div>
+              <button
+                className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => removeImage(index,image.id)}
+                disabled={isButtonDisabled} // Pass the actual image ID instead of index
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          )}
+          ))}
+        </div>
+)}
+
         </div>
 
         {/* Car Details Form */}
@@ -364,7 +458,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input id="title" placeholder="e.g. 2018 Toyota Camry in excellent condition" 
-              value={data.title}
+                value={data.title}
               onChange={(e) => setData("title", e.target.value)}/>
                {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
             </div>
@@ -656,7 +750,31 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
         <Wrench className="h-4 w-4" />
         Cylinders
       </Label>
-      <Select onValueChange={(value) => setData({ ...data, cylinders: value, engine: "", fuel: "" })}
+      <Select  onValueChange={(value) => {
+    if (value === "Electric") {
+      // احفظ القيم قبل المسح
+      setPreviousEngine(data.engine);
+      setPreviousFuel(data.fuel);
+
+      // امسح القيم وقم بتحديث isElectric
+      setData({ 
+        ...data, 
+        cylinders: value, 
+        engine: "", 
+        fuel: "", 
+        isElectric: true 
+      });
+    } else {
+      // استرجع القيم السابقة عند اختيار محرك غير كهربائي
+      setData({ 
+        ...data, 
+        cylinders: value, 
+        engine: previousEngine, 
+        fuel: previousFuel, 
+        isElectric: false 
+      });
+    }
+  }} 
         value={data.cylinders}>
         <SelectTrigger>
           <SelectValue placeholder="Select cylinders" />
@@ -802,9 +920,9 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
             </Label>
             <div className="flex flex-wrap gap-2 mb-2">
               {data.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                  {tag}
-                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => removeTag(tag)} />
+                <Badge key={tag.id} variant="secondary" className="flex items-center gap-1">
+                  {tag.name || "New Tag"}
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => removeTag(tag.id)} />
                 </Badge>
               ))}
             </div>
@@ -825,23 +943,23 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
           </div>
         </div>
         {/* Submit Button */}
-        <Button className="w-full md:w-auto mt-5 xs-range:mt-2" size="lg"  type="submit" disabled={processing}>
-        Submit Listing
+        <Button className="w-full md:w-auto mt-5 xs-range:mt-2" size="lg"  disabled={processing}>
+                Update Your Car 
         </Button>
         </form>
       </div>
       <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="rounded-full bg-rose-100 p-3 mb-4">
-              <LogIn className="h-6 w-6 text-blue-500" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">Login Required</h2>
-            <p className="text-center text-gray-500 mb-6">You need to login to Rate cars.</p>
-            <p className="text-center text-gray-500 mb-6">Pleace Click on Menu Button</p>
-          </div>
-        </DialogContent>
-      </Dialog>
+              <DialogContent className="sm:max-w-md">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <div className="rounded-full bg-rose-100 p-3 mb-4">
+                    <LogIn className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <h2 className="text-xl font-semibold mb-2">Login Required</h2>
+                  <p className="text-center text-gray-500 mb-6">You need to login to Rate cars.</p>
+                  <p className="text-center text-gray-500 mb-6">Pleace Click on Menu Button</p>
+                </div>
+              </DialogContent>
+            </Dialog>
     </div>
     </>
   )

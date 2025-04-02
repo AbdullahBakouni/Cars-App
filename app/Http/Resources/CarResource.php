@@ -25,15 +25,21 @@ class CarResource extends JsonResource
             'price' => $this->price,
             'year' => $this->year,
             'body_type' => $this->body_type,
+            'mileage' => $this->mileage,
+            'currency' => $this->currency,
+            'status'=> $this->status,
+            'rates' => $this->rates,
             'doors' => $this->doors,
             'cylinders' => $this->cylinders,
             'transmission' => $this->transmission,
             'fuel_type' => $this->fuel_type,
             'color' => $this->color,
             'user' => new UserResource($this->whenLoaded('user')),
-            'company' => new CompanyResource($this->whenLoaded('company')),
+            'company' => new CompanyResource($this->company),
             'images' => CarImageResource::collection($this->whenLoaded('images')),
-            'tags' => TagResource::collection($this->whenLoaded('tags')),
+            'tags' => $this->whenLoaded('tags', function () {
+                return new CompanyResource($this->tags);
+            }, null),
         ];
     }
 }

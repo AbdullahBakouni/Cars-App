@@ -34,6 +34,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'currency' => session('currency', 'SYP'),
+            'success' => session('success'),
         ];
     }
 }

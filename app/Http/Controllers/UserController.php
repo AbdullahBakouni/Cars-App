@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -61,4 +63,19 @@ class UserController extends Controller
     {
         //
     }
-}
+    public function getCarCount(Request $request)
+    {
+        $user = $request->user(); // Get the authenticated user
+    
+        // Check if user is authenticated
+        // if (!$user) {
+        //     return response()->json(['error' => 'Unauthorized'], 401);
+        // }
+    
+        // Directly count the number of cars without loading all the data
+        $carCount = $user->cars()->count();
+        return response()->json([
+            'car_count' => $carCount,
+        ]);
+    }
+}    
