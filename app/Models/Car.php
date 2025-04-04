@@ -15,9 +15,9 @@ class Car extends Model
 
     // Specify the fillable fields for mass assignment
     protected $fillable = [
-        'title', 'description', 'brand', 'model', 'year', 'location', 'price', 'phone', 'whatsapp',
+        'title', 'description', 'brand', 'model', 'year', 'location', 'price',
         'body_type', 'doors', 'cylinders', 'transmission', 'fuel', 'color', 'company_id','currency','mileage',
-        'status','rates','engine','user_id'
+        'status','rates','engine','user_id','phone_id'
     ];
     // Define relationships
 
@@ -44,7 +44,10 @@ class Car extends Model
     public function reviews() {
         return $this->hasMany(Review::class);
     }
-    
+    public function phone()
+    {
+        return $this->belongsTo(Phone::class);
+    }
     public function calculateAverageRating()
     {
         return $this->reviews()->avg('rating'); // Returns the average rating as a float

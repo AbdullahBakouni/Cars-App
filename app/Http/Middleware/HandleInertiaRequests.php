@@ -36,6 +36,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'currency' => session('currency', 'SYP'),
             'success' => session('success'),
+            'user_phone' => session('user_phone'),
+            'resetpassstatus' => session('resetpassstatus'),
         ];
     }
 }

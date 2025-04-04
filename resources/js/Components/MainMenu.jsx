@@ -14,7 +14,7 @@ import { Inertia } from '@inertiajs/inertia';
 import { router } from "@inertiajs/react";
 
 
-const MainMenu = ({ authuser , status , hasVerifiedEmail , currency}) => {
+const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpassstatus}) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showForgetPassword, setShowForgetPassword] = useState(false);
@@ -79,7 +79,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail , currency}) => {
     ) : (
   <div className="flex-1 overflow-auto p-4 relative">
     {showForgetPassword ? (
-      <ForgotPassword onReturn={handleReturnToMainMenu} status={status} />
+      <ForgotPassword onReturn={handleReturnToMainMenu} status={status} resetpassstatus = {resetpassstatus}/>
     ) : (
       <>
         {showLoginForm && !showRegisterForm ? (

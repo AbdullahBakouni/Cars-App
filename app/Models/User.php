@@ -23,8 +23,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
-        "phone",
-        "whatsapp",
     ];
 
     /**
@@ -61,5 +59,9 @@ class User extends Authenticatable implements MustVerifyEmail
     }
     public function reviews() {
         return $this->hasMany(Review::class);
+    }
+    public function phones(): HasMany
+    {
+        return $this->hasMany(Phone::class);
     }
 }

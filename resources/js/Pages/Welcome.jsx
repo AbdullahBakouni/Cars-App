@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -7,20 +7,23 @@ import {
   Truck,
   Bus,
   Package,
+  LogIn,
 } from "lucide-react";
 import carData from "./cars";
 import NavBar from "@/Components/NavBar";
 import { Inertia } from "@inertiajs/inertia";
 import { usePage } from "@inertiajs/react";
+import { Dialog, DialogContent, DialogTitle } from "@/Components/ui/dialog";
 
 
 
 
-export default function Welcome({auth , status , hasVerifiedEmail}) {
+export default function Welcome({auth , hasVerifiedEmail , message, message_type}) {
   const [maxPrice, setMaxPrice] = useState("");
   const [expandMakes, setExpandMakes] = useState(false);
   const { currency } = usePage().props;
-  
+  const { resetpassstatus } = usePage().props;
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const bodyTypes = [
     { id: "coupe", label: "COUPE", icon: <Car className="w-6 h-6" /> },
     { id: "sedan", label: "SEDAN", icon: <Car className="w-6 h-6" /> },
@@ -84,7 +87,11 @@ const carCategories = [
         },
 ]
 
- 
+useEffect(() => {
+  if (message && message_type) {
+    setLoginDialogOpen(true);
+  }
+}, [message, message_type]);
   const handleBodyTypeClick = (typeId) => {
     Inertia.visit(route("cars.byBodyType", { body_type: typeId }));
   };
@@ -108,7 +115,7 @@ const carCategories = [
     <>
     <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
-     <NavBar auth = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail} currency = {currency}/>
+     <NavBar auth = {auth}  hasVerifiedEmail = {hasVerifiedEmail} currency = {currency} resetpassstatus ={resetpassstatus}/>
 
       {/* Main Content */}
       <main className="md:flex-1 relative overflow-hidden">
@@ -128,7 +135,7 @@ const carCategories = [
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-4xl md:text-6xl font-bold text-gray-800 flex items-center xs-range:text-3xl">
               <span>sayart</span>
-              <span className="text-blue-500">ii</span>
+              <span className="text-[#962118]">ii</span>
               <span>.com</span>
               <span className="mx-8 text-gray-300">|</span>
               <span>Syria</span>
@@ -167,7 +174,7 @@ const carCategories = [
                   onChange={(e) => setMaxPrice(e.target.value)}
                 />
               </div>
-              <Button onClick={handleSearch} className="bg-blue-500 hover:bg-blue-600 text-white px-8 h-10 mt-4 md:mt-6 xs-range:px-4">
+              <Button onClick={handleSearch} className="bg-[#962118] hover:bg-blue-600 text-white px-8 h-10 mt-4 md:mt-6 xs-range:px-4">
                 Search <span className="ml-1">→</span>
               </Button>
             </div>
@@ -197,7 +204,7 @@ const carCategories = [
         {bodyTypes.map((type) => (
             <div key={type.id} className="flex flex-col items-center justify-center cursor-pointer"
             onClick={() => handleBodyTypeClick(type.id)}>
-            <div className="w-10 h-10 flex items-center justify-center mb-1 text-blue-500">{type.icon}</div>
+            <div className="w-10 h-10 flex items-center justify-center mb-1 text-[#962118]">{type.icon}</div>
             <span className="text-[10px] text-center">{type.label}</span>
           </div>
         ))}
@@ -276,6 +283,23 @@ const carCategories = [
         </div>
       </div>
     </div>
+    
+    {message && message_type && (
+        <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+          <DialogTitle>{message_type}</DialogTitle>
+          <DialogContent className="sm:max-w-md">
+            <div className="flex flex-col items-center justify-center py-6">
+              <div className="rounded-full bg-rose-100 p-3 mb-4">
+                <LogIn className="h-6 w-6 text-blue-500" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">{message}</h2>
+              <p className="text-center text-gray-500 mb-6">
+               Please click on the menu button
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
     
   </>

@@ -8,6 +8,7 @@ use App\Http\Resources\CarResource;
 use App\Models\Car;
 use App\Models\CarImage;
 use App\Models\Company;
+use App\Models\Phone;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -36,30 +37,58 @@ class CarController extends Controller
         try {
             // Exclude unnecessary fields for the car creation
             $validatedData = $request->validated();
-            $data = Arr::except($validatedData, ['images', 'company_name', 'company_logo', 'tags', 'phone', 'whatsapp', 'company_location']);
-          
+            $data = Arr::except($validatedData, ['images', 'company_name', 'company_logo', 'tags', 'phone', 'company_location']);
+            if ($request->has('price')) {
+                $data['price'] = (float) $request->price;  // Ensure price is an float
+            }
             // Get the authenticated user
             $user = Auth::user();
         
-            // Check if user is an instance of the User model
             if (!$user instanceof User) {
                 return response()->json(['error' => 'User is not authenticated'], 401);
             }
-        
-        
-            if ($request->has('phone')) {
-                $user->phone = $request->phone; // Assign the phone number
+    
+            // Create the car
+            if ($request->has('phone') && !empty($request->phone)) {
+                // Remove non-numeric characters
+                $normalizedPhone = preg_replace('/\D/', '', $request->phone);  // Remove anything non-numeric
+              // You can remove this line later, it's for debugging
+                
+                $normalizedPhone = preg_replace('/\D/', '', $request->phone);  // Remove anything non-numeric
+    
+    // Case 1: If the phone starts with 09 and is 10 digits long
+            if (substr($normalizedPhone, 0, 2) === '09' && strlen($normalizedPhone) === 10) {
+                // If the number starts with 09, replace it with +963
+                $normalizedPhone = '+963 ' . substr($normalizedPhone, 1);  // Replace 0 with +963
+            } 
+            // Case 2: If the phone starts with 963 and is 11 digits long (already normalized without the +)
+            elseif (substr($normalizedPhone, 0, 3) === '963' && strlen($normalizedPhone) === 12) {
+                // If the number starts with 963, add +963 to the front and format it
+                $normalizedPhone = '+963 ' . substr($normalizedPhone, 3);  // Keep +963 and add the remaining digits
+            } 
+     else {
+        return response()->json(['error' => 'Invalid phone number format. It should start with +963 or 09.'], 400);
+    }
+            
+                // Check if the phone already exists for the user
+                $phone = $user->phones()->where('number', $normalizedPhone)->first();
+            
+                if (!$phone) {
+                    // If the phone doesn't exist, create a new phone entry
+                    $phone = $user->phones()->create([
+                        'number' => $normalizedPhone,
+                    ]);
+                }
+            
+                // Associate the car with the phone
+                $data['phone_id'] = $phone->id;
             }
             
-            if ($request->has('whatsapp')) {
-                $user->whatsapp = $request->whatsapp; // Assign the whatsapp number
-            }
-            
-            // Save the updated user data
-            $user->save();
-            
+
+
             $car = $user->cars()->create($data);
-        
+            
+    
             // Handle images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
@@ -70,29 +99,25 @@ class CarController extends Controller
                     ]);
                 }
             }
-        
-            // Handle company logo (if present)
+    
+            // Handle company details
             if (($request->has('company_name') && !empty($request->company_name)) || ($request->hasFile('company_logo') && $request->file('company_logo') !== null)) {
-                // Store the company logo if uploaded
                 $logoPath = null;
                 if ($request->hasFile('company_logo')) {
                     $logoPath = $request->file('company_logo')->store('logos', 'public');
                 }
             
-                // Create a new company even if the user already has one
                 $company = Company::create([
                     'user_id' => $user->id,
-                    'company_name' => $request->company_name ?? 'Default Company', // Default if company_name is not provided
+                    'company_name' => $request->company_name ?? 'Default Company',
                     'logo_path' => $logoPath,
                     'location' => $request->company_location,
                 ]);
             
-                // Assign the new company ID to the car being created (if needed)
                 $car->company_id = $company->id;
                 $car->save(); 
             }
-            
-        
+    
             // Save tags
             if ($request->has('tags')) {
                 $tags = is_string($request->tags) ? explode(',', $request->tags) : $request->tags;
@@ -103,13 +128,13 @@ class CarController extends Controller
                     ]);
                 }
             }
-        
+    
             return redirect()->route('car.show', $car->id)->with("success", "Car created successfully.");
         } catch (\Exception $e) {
             return response()->json(['error' => 'Something went wrong: ' . $e->getMessage()], 500);
         }
-        
     }
+    
     
     
 
@@ -121,7 +146,7 @@ class CarController extends Controller
     {
         try {
             // Retrieve the car with related data
-            $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user'])->findOrFail($id);
+            $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($id);
             $user = Auth::user();
             $reviewsByUser = $car->reviews->groupBy('user_id');
               // Get the price of the car (in the same currency as the suggested cars)
@@ -172,7 +197,7 @@ class CarController extends Controller
      */
     public function edit($id)
      {
-        $car = Car::with(['images','company','tags','user'])->findOrFail($id);
+        $car = Car::with(['images','company','tags'])->findOrFail($id);
         $user = Auth::user();
          return Inertia::render('Update-Cars/Update', ['car' => $car,
          'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
@@ -187,13 +212,12 @@ class CarController extends Controller
         $car = Car::findOrFail($id);
         $user = $car->user; // Get the user associated with the car
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'required|string',
             'brand' => 'required|string',
             'model' => 'nullable|string',
             'year' => 'required|integer',
             'location' => 'nullable|string',
-            'price' => 'nullable|numeric',
+            'price' => 'nullable|string|min:1',
             'company_name' => [
                 'nullable',
                 'required_with:company_logo', // ✅ Ensures company_name is required if company_logo exists
@@ -208,11 +232,11 @@ class CarController extends Controller
             ],
             'company_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'body_type' => 'nullable|string',
-            'mileage' => 'nullable|numeric',
+            'mileage' => 'nullable|string',
             'currency' => 'nullable|string',
             'status' => 'nullable|string',
             'doors' => 'nullable|integer',
-            'cylinders' => 'nullable|integer',
+            'cylinders' => 'nullable|string|max:20',
             'transmission' => 'nullable|string',
             'fuel' => 'nullable|string',
             'engine' => 'nullable|integer',
@@ -221,10 +245,19 @@ class CarController extends Controller
             'new_images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'removed_images' => 'nullable|array',
             'removed_tags'=>'nullable|array',
-            'phone' => 'nullable|string',
-            'whatsapp' => 'nullable|string',
         ]);
-    
+
+        if ($request->has('price')) {
+            // Remove dots as thousand separators and then cast to float
+            $price = str_replace('.', '', $request->price);  // Remove all dots
+            $validated['price'] = (float) $price;  // Cast to float after removing dots
+        }
+
+        if ($request->has('mileage')) {
+            // Remove dots as thousand separators and then cast to float
+            $mileage = str_replace('.', '', $request->mileage);  // Remove all dots
+            $validated['mileage'] = (float) $mileage;  // Cast to float after removing dots
+        }
         // Update or create company
         if ($request->filled('company_name') || $request->filled('company_location') || $request->hasFile('company_logo')) {
             if ($car->company->id !== null) {
@@ -267,15 +300,7 @@ class CarController extends Controller
         }
     
         // Update the car fields (excluding phone & WhatsApp)
-        $car->update(collect($validated)->except(['phone', 'whatsapp', 'company_name', 'company_location', 'company_logo','tags','removed_tags'])->toArray());
-    
-        // Update user's phone and WhatsApp
-        if ($user) {
-            $user->update([
-                'phone' => $validated['phone'] ?? $user->phone,
-                'whatsapp' => $validated['whatsapp'] ?? $user->whatsapp,
-            ]);
-        }
+        $car->update(collect($validated)->except(['company_name', 'company_location', 'company_logo','tags','removed_tags'])->toArray());
     
         // Handle company logo upload
         if ($request->hasFile('company_logo')) {
@@ -372,11 +397,11 @@ class CarController extends Controller
         }
     
         // Delete the car record
-        $car->delete();
+            $car->delete();
     
             session()->flash("success","Car was deleted successfully");
         // Redirect with success message, updated cars, and email verification status
-        return redirect()->route('cars.my'); // Assuming you have a route like this
+            return redirect()->route('cars.my'); // Assuming you have a route like this
             // ->with('cars', Car::with(['images','reviews', 'reviews.user'])->where('user_id', $user->id)->get())
             // ->with('successdeleted', $successdeleted)
             // ->with('hasVerifiedEmail', $hasVerifiedEmail); // Pass the email verification status

@@ -78,15 +78,12 @@ const colorOptions = [
 
 export default function Update({auth,car,hasVerifiedEmail}) {
   const { data, setData, post, errors, processing } = useForm({
-    title: car?.title || "",
     description: car?.description || "",
     brand: car?.brand || "",
     model: car?.model || "",
     year: car?.year?.toString() || "",
     location: car?.location || "",
     price: car?.price || "",
-    phone: car?.user?.phone || "",
-    whatsapp: car?.user?.whatsapp || "",
     company_name: car?.company?.company_name || "",
     company_location: car?.company?.location || "",
     company_logo: null,
@@ -129,12 +126,13 @@ export default function Update({auth,car,hasVerifiedEmail}) {
     const companyLogoInputRef = useRef(null);
     const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const isElectric = data.cylinders === "Electric";
+  console.log(car);
   useEffect(() => {
     if (!car) return;
 
+    const matchedBrand = carData.data.find((brand) => brand.name === car.brand);
     setData((prevData) => ({
         ...prevData,
-        title: car.title,
         description: car.description,
         brand: car.brand,
         year: car.year.toString(),
@@ -143,7 +141,7 @@ export default function Update({auth,car,hasVerifiedEmail}) {
         doors: car.doors.toString(),
         cylinders: car.cylinders.toString(),
         transmission: car.transmission.toString(),
-        fuel: car.fuel.toLowerCase(),
+        fuel: car.fuel?.toLowerCase() ?? "",
         color: car.color,
         tags: car.tags,
         company_name: car.company?.company_name ?? "",
@@ -151,7 +149,7 @@ export default function Update({auth,car,hasVerifiedEmail}) {
         status: car.status,
     }));
     setSelectedBodyType(car.body_type || null);
-
+    setSelectedBrand(matchedBrand || null);
     setSelectedColor(car.color || null);
     if (!companyLogoUrl) {
       setCompanyLogoUrl(car.company?.logo_path ? `/storage/${car.company.logo_path}` : null);
@@ -351,7 +349,36 @@ const handleImageUpload = (e) => {
       setSelectedBodyType(value);  // Update local state for body type
       setData('body_type', value); // Update form data
     };
+    const handlePriceChange = (e) => {
+      let value = e.target.value;
+
+      // Remove all non-numeric characters
+      value = value.replace(/\D/g, '');
   
+      // Format the number with dots as thousand separators
+      value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+      // Update state with the formatted value
+      setData("price", value);
+    }
+    const handleMileageChange = (e) => {
+      // Get the value from input field
+      let value = e.target.value;
+  
+      // Remove all non-numeric characters (to prevent letters or other symbols)
+      value = value.replace(/\D/g, '');
+  
+      // Format the number with commas
+      if (value.length > 3) {
+        value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+  
+      // Set the formatted value
+      setData({
+        ...data,
+        mileage: value,
+      });
+    };
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: currentYear - 1970 + 1 }, (_, i) => currentYear - i);
 
@@ -456,14 +483,6 @@ const submit = (e) => {
           {/* Title and Description */}
           <div className="md:col-span-2 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" placeholder="e.g. 2018 Toyota Camry in excellent condition" 
-                value={data.title}
-              onChange={(e) => setData("title", e.target.value)}/>
-               {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
@@ -559,10 +578,10 @@ const submit = (e) => {
             </Label>
             <Input
               id="mileage"
-              type="number"
+              type="text"
               placeholder="Vehicle mileage in kilometers"
               value={data.mileage}
-              onChange={(e) => setData("mileage",e.target.value)}
+              onChange={handleMileageChange}
             />
               {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage}</p>}
           </div>
@@ -586,35 +605,12 @@ const submit = (e) => {
               <DollarSign className="h-4 w-4" />
               Price  ({data.currency})
             </Label>
-            <Input id="price" type="number" placeholder={`Price in ${currency}`} 
+            <Input id="price" type="text" placeholder={`Price in ${currency}`} 
              value={data.price}
-             onChange={(e) => setData("price", e.target.value)}
+             onChange={handlePriceChange}
             />
              {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
           </div>
-
-          {/* Contact Information */}
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              Phone Number
-            </Label>
-            <Input id="phone" placeholder="Your contact number" 
-             value={data.phone}
-             onChange={(e) => setData("phone", e.target.value)}/>
-          </div>
-          {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              WhatsApp
-            </Label>
-            <Input id="whatsapp" placeholder="WhatsApp number (if different)"
-             value={data.whatsapp}
-             onChange={(e) => setData("whatsapp", e.target.value)} />
-              {errors.whatsapp && <p className="text-red-500 text-sm mt-1">{errors.whatsapp}</p>}
-          </div>
-
           {/* Company Information */}
           <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border xs-range:rounded-sm">
             <div className="space-y-2">

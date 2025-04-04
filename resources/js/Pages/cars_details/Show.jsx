@@ -17,15 +17,17 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showRatingForm, setShowRatingForm] = useState(false)
     const { currency } = usePage().props;
+     const { resetpassstatus } = usePage().props;
     const [showPhoneNumber, setShowPhoneNumber] = useState(false);
     const [showWhatsapp, setShowWhatsapp] = useState(false);
     const carReviewsCount = car.reviews.filter(review =>review.comment).length;
     const companyReviewsCount = car.company?.reviews?.filter(review => review.comment)?.length || 0;
+    const carFuel = car.fuel ? car.fuel.toUpperCase() : 'ELECTRIC';
     const handleButtonClick = () => {
       setShowPhoneNumber(true);
     };
     const handleWhatsappClick = () => {
-        const phoneNumber = car.user.whatsapp || car.user.phone;
+        const phoneNumber = car.phone.number
     
         // Ensure the phone number is in the correct format (no spaces, parentheses, or dashes)
         const formattedPhoneNumber = phoneNumber.replace(/\D/g, ''); // Remove all non-numeric characters
@@ -50,7 +52,7 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
         <>
         <Head title={car.brand} />
         <div className="min-h-screen bg-gray-50">
-        <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency}/>
+        <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus = {resetpassstatus}/>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Images */}
@@ -123,7 +125,7 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
                 </div>
               </div>
               <p className="text-lg text-gray-700 mt-1">
-              {car.brand} {car.model}  {car.transmission} / {car.year} / {car.body_type.toUpperCase()}/{car.fuel.toUpperCase()}
+              {car.brand} {car.model}  {car.transmission} / {car.year} / {car.body_type.toUpperCase()}/{carFuel}
               </p>
             </div>
   
@@ -185,11 +187,11 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
 
                         <div className="flex justify-between py-2 border-b">
                           <span className="font-medium">Cylinders:</span>
-                          <span>V{car.cylinders}</span>
+                          <span>{car.fuel ? `V${car.cylinders}` : 'V0'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b">
                           <span className="font-medium">Fuel:</span>
-                          <span>{car.fuel}</span>
+                          <span>{car.fuel ? car.fuel : 'Battery'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b">
                           <span className="font-medium">Transmission:</span>
@@ -298,8 +300,8 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
                 </Button>
                 <Button variant="outline" className="w-full" onClick={handleButtonClick}>
                   <Phone className="mr-2 h-4 w-4" />   {showPhoneNumber ? (
-                    <a href={`tel:${car.user.phone}`} className="w-full">
-                        Call {car.user.phone}
+                    <a href={`tel:${car.phone.number}`} className="w-full">
+                        Call {car.phone.number}
                     </a>
                     ) : (
                     "Show Number"
@@ -347,7 +349,7 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="text-gray-600">Fuel</div>
-                    <div className="text-right font-medium">{car.fuel}</div>
+                    <div className="text-right font-medium">{car.fuel ? car.fuel : 'Battery'}</div>
                   </div>
                 </div>
               </CardContent>

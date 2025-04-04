@@ -15,11 +15,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('company_id')->nullable()->constrained("company")->onDelete('set null');
+            $table->foreignId('phone_id')->constrained("phones")->onDelete('cascade');
             $table->text('description');
             $table->string('brand');
             $table->string('model');
             $table->string('body_type');
-            $table->integer('mileage');
+            $table->decimal('mileage', 15, 2);
             $table->enum('currency', ['SYP', 'USD'])->default('SYP');
             $table->enum('status', ['sell', 'rent','rented','sold'])->default('sell');
             $table->decimal('rates', 3, 2)->default(0);

@@ -17,8 +17,6 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store'])->name('login');
 
-    
-
     Route::get('/welcome', [PasswordResetLinkController::class, 'show'])->name('welcome');
    
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])

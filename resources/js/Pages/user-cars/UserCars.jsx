@@ -19,6 +19,7 @@ const UserCars = ({auth,cars,hasVerifiedEmail}) => {
    const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [message, setMessage] = useState(''); 
   const { success } = usePage().props;
+  const { resetpassstatus } = usePage().props;
   // Show success dialog if there's a success message
   useEffect(() => {
     const storedMessage = sessionStorage.getItem('successMessage');
@@ -57,7 +58,7 @@ const UserCars = ({auth,cars,hasVerifiedEmail}) => {
     <Head title={cars.length > 0 ? `My Cars (${cars.length})` : "No Cars"} />
         <div className="min-h-screen bg-gray-50">
           {/* Header */}
-         <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency}/>
+         <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus={resetpassstatus}/>
           <div className="container mx-auto py-10">
           <h1 className="text-3xl font-bold mb-6 xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">My Cars</h1>
         <div className="space-y-6">

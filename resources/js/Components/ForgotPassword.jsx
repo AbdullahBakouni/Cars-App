@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import InputError from './InputError';
 
 
-const ForgotPassword = ({onReturn,status}) => {
+const ForgotPassword = ({onReturn,resetpassstatus}) => {
     const { data, setData, post, processing, errors } = useForm({
           email: '',
       });
@@ -18,7 +18,7 @@ const ForgotPassword = ({onReturn,status}) => {
   
           post(route('password.email'));
       };
-      console.log(status)
+      console.log(resetpassstatus)
   return (
     <>
      <Head title="Forgot Password" />
@@ -43,9 +43,9 @@ const ForgotPassword = ({onReturn,status}) => {
           <span>com</span>
         </div>
       </div>
-      {status && (
+      {resetpassstatus && (
                 <div className="mb-4 text-sm font-medium text-green-600">
-                    {status}
+                    {resetpassstatus}
                 </div>
             )}
       <form onSubmit={submit}>

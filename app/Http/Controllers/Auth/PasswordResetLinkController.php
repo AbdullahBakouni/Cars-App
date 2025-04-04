@@ -41,8 +41,10 @@ class PasswordResetLinkController extends Controller
 
         // If the reset link was sent successfully, redirect with a status message
         if ($status == Password::RESET_LINK_SENT) {
-            return to_route('welcome')->with('status', __($status));
+            session()->put('resetpassstatus', __($status));
         }
+    
+        // Return response (no redirection needed)
 
         // Otherwise, throw a validation exception with an error message
         throw ValidationException::withMessages([

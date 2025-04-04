@@ -18,6 +18,7 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
     const [showPhoneNumber, setShowPhoneNumber] = useState(false);
     const [activeTab, setActiveTab] = useState("cars")
      const { currency } = usePage().props;
+      const { resetpassstatus } = usePage().props;
      const companyReviewsCount = company.reviews.filter(review => review.comment).length;
      console.log(company)
     const handleButtonClick = () => {
@@ -40,7 +41,7 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
       <>
       <Head title={company.company_name} />
         <div className="min-h-screen bg-gray-50">
-        <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency}/>
+        <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus = {resetpassstatus}/>
       <div className="container mx-auto px-4 py-8">
         {/* Company Header */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">

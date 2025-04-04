@@ -85,7 +85,6 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
     location:  '',
     price: '',
     phone: '',
-    whatsapp:  '',
     company_name: '',
     company_location: '',
     company_logo:  null,
@@ -121,7 +120,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
 
   const submit = (e) => {
     e.preventDefault();
-    
+    console.log(data);
     if(auth.user && hasVerifiedEmail){
       post(route("car.store"));
     }
@@ -287,7 +286,36 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
       setSelectedBodyType(value);  // Update local state for body type
       setData('body_type', value); // Update form data
     };
+    const handleMileageChange = (e) => {
+      // Get the value from input field
+      let value = e.target.value;
   
+      // Remove all non-numeric characters (to prevent letters or other symbols)
+      value = value.replace(/\D/g, '');
+  
+      // Format the number with commas
+      if (value.length > 3) {
+        value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+  
+      // Set the formatted value
+      setData({
+        ...data,
+        mileage: value,
+      });
+    };
+    const handlePriceChange = (e) => {
+      let value = e.target.value;
+
+      // Remove all non-numeric characters
+      value = value.replace(/\D/g, '');
+  
+      // Format the number with dots as thousand separators
+      value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+      // Update state with the formatted value
+      setData("price", value);
+    }
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: currentYear - 1970 + 1 }, (_, i) => currentYear - i);
   return (
@@ -359,16 +387,8 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
 
         {/* Car Details Form */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 xs-range:gap-3 xs-range:text-xs">
-          {/* Title and Description */}
+          {/*Description */}
           <div className="md:col-span-2 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" placeholder="e.g. 2018 Toyota Camry in excellent condition" 
-              value={data.title}
-              onChange={(e) => setData("title", e.target.value)}/>
-               {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -468,7 +488,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
               type="number"
               placeholder="Vehicle mileage in kilometers"
               value={data.mileage}
-              onChange={(e) => setData("mileage",e.target.value)}
+              onChange={handleMileageChange}
             />
               {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage}</p>}
           </div>
@@ -492,9 +512,10 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
               <DollarSign className="h-4 w-4" />
               Price  ({data.currency})
             </Label>
-            <Input id="price" type="number" placeholder={`Price in ${currency}`} 
+            <Input id="price"  type="text" placeholder={`Price in ${currency}`} 
              value={data.price}
-             onChange={(e) => setData("price", e.target.value)}
+             onChange={handlePriceChange}
+             oninput="this.value = this.value.replace(/\D/g, '')"
             />
              {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
           </div>
@@ -510,17 +531,6 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
              onChange={(e) => setData("phone", e.target.value)}/>
           </div>
           {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              WhatsApp
-            </Label>
-            <Input id="whatsapp" placeholder="WhatsApp number (if different)"
-             value={data.whatsapp}
-             onChange={(e) => setData("whatsapp", e.target.value)} />
-              {errors.whatsapp && <p className="text-red-500 text-sm mt-1">{errors.whatsapp}</p>}
-          </div>
-
           {/* Company Information */}
           <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border xs-range:rounded-sm">
             <div className="space-y-2">

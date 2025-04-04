@@ -16,7 +16,10 @@ import axios from 'axios';
 
 export default function LoggedInMenuContent({currency}) {
     const [activeComponent, setActiveComponent] = useState('menu');
-
+    const storeUserPhone = () => {
+     router.post(route("store_user_phone"));
+      setActiveComponent('profile');
+  };
      const handleCurrencyChange = (value) => {
         router.get(route("setCurrency"), { currency: value }, { preserveState: true, preserveScroll: true });
     };
@@ -67,7 +70,7 @@ export default function LoggedInMenuContent({currency}) {
                         <Button 
                             variant="ghost" 
                             className="w-full justify-start text-base font-normal"
-                            onClick={() => setActiveComponent('profile')}
+                            onClick={storeUserPhone}
                         >
                             <UserCircle2 className="mr-4 h-5 w-5" />
                             Profile

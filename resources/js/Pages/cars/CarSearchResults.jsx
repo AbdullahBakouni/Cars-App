@@ -20,6 +20,7 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
    const sortoption = queryParams.get("sort");
    const [pendingSortOption, setPendingSortOption] = useState(sortoption || "posted");
    const { currency } = usePage().props;
+    const { resetpassstatus } = usePage().props;
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 400) {
@@ -97,7 +98,7 @@ const getSortLabel = (value) => {
     <Head title={cars.length > 0 ? cars[0].model : "No Cars"} />
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-     <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency}/>
+     <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus={resetpassstatus}/>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">

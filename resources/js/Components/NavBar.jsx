@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "./ui/input"
 import SearchBar from "./SearchBar"
 import { useState } from "react"
-const NavBar = ({auth,status,hasVerifiedEmail,currency}) => {
+const NavBar = ({auth,status,hasVerifiedEmail,currency,resetpassstatus}) => {
 
   const [selectedBodyTypes, setSelectedBodyTypes] = useState("")
   const [location, setLocation] = useState("uae")
@@ -57,7 +57,7 @@ const NavBar = ({auth,status,hasVerifiedEmail,currency}) => {
           <div className="flex items-center flex-1 max-w-xl mx-4">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="rounded-r-none border-r-0 bg-blue-400 text-white hover:bg-blue-400 hover:text-white xs-range:p-2">
+                <Button variant="outline" className="rounded-r-none border-r-0 bg-[#962118] text-white hover:bg-blue-400 hover:text-white xs-range:p-2">
                   <SlidersHorizontal className="h-4 w-4 xs-range:h-2 xs-range:w-2" />
                   <span className="ml-2 hidden sm:inline">Filters</span>
                 </Button>
@@ -186,11 +186,11 @@ const NavBar = ({auth,status,hasVerifiedEmail,currency}) => {
           </div>
 
           {/* Menu Button with Sheet (visible on larger screens) */}
-          <MainMenu authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail} currency = {currency}/>
+          <MainMenu authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail} currency = {currency} resetpassstatus = {resetpassstatus}/>
           
            
           {/* Hamburger Menu (visible on smaller screens) */}
-          <HamburgerMenu  authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail}  currency = {currency}/>
+          <HamburgerMenu  authuser = {auth} status = {status} hasVerifiedEmail = {hasVerifiedEmail}  currency = {currency} resetpassstatus = {resetpassstatus}/>
         </div>
       </header>
     </>
