@@ -5,7 +5,8 @@ import axios from 'axios'; // Make sure axios is installed
 import { Button } from './ui/button';
 import carData from '@/Pages/cars';
 import { Inertia } from '@inertiajs/inertia';
-
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 const SearchBar = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -141,13 +142,14 @@ const SearchBar = () => {
                 </Button>
                 <div className="flex items-center">
                   <div className="w-8 h-8 mr-2 relative">
-                    <img
-                      src={selectedBrand.image}
-                      alt={selectedBrand.name}
-                      width={32}
-                      height={32}
-                      className="object-contain"
-                    />
+                  <LazyLoadImage
+                src={selectedBrand.image}
+                alt={selectedBrand.name}
+                width={32}
+                height={32}
+                className="object-contain"
+                effect="blur" // Optional effect for lazy loading
+              />
                   </div>
                   <span className="font-medium">{selectedBrand.name} Models</span>
                 </div>
@@ -202,13 +204,14 @@ const SearchBar = () => {
                   onClick={() => handleBrandSelect(brand)}
                 >
                   <div className="w-8 h-8 mr-3 relative">
-                    <img
-                      src={brand.image}
-                      alt={brand.name}
-                      width={40}
-                      height={40}
-                      className="object-contain"
-                    />
+                  <LazyLoadImage
+                  src={brand.image}
+                  alt={brand.name}
+                 width={40}
+                 height={40}
+                className="object-contain"
+                effect="blur" // Optional effect for lazy loading
+              />
                   </div>
                   <span>{brand.name}</span>
                   <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />

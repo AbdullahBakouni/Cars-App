@@ -1,6 +1,6 @@
 
 
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -27,7 +27,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Link } from "@inertiajs/react"
-import RatingStars from "./RatingStars"
+// import RatingStars from "./RatingStars"
+import { LazyLoadImage } from "react-lazy-load-image-component"
+import 'react-lazy-load-image-component/src/effects/blur.css';
+const RatingStars = lazy(() => import("./RatingStars"));
 export function CarCard({ car, onDelete, onStatusChange}) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isMarkAsSoldDialogOpen, setIsMarkAsSoldDialogOpen] = useState(false)
@@ -69,21 +72,24 @@ export function CarCard({ car, onDelete, onStatusChange}) {
     car.reviews.length > 0
       ? [...car.reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
       : null
-
-
+      const firstImage = car.images.length > 0 ? car.images[0].image_path : 'default-image-path.jpg'; // Use a default image if no images exist.
   return (
     <>
       <Card className="overflow-hidden">
       <Link href={`/car/${car.id}`} key={car.id}>
         <div className="relative aspect-[4/3]">
-          <img  src={`/storage/${car.images[0].image_path}`}
-                alt={`${car.year} ${car.make} ${car.model}`}
-                 className="object-cover h-full w-full" />
+          <LazyLoadImage
+              src={`${firstImage}`}
+              alt={`${car.year} ${car.brand} ${car.model}`}
+              className="object-cover h-full w-full"
+              effect="blur" // Optional effect for lazy loading
+            />
                <Badge className={`absolute top-2 right-2 xs-range:text-xs xs-s-range:text-xs ${getStatusColor(car.status)}`}>
                   {car.status === "rented" || car.status === "sold" ? car.status.charAt(0).toUpperCase() + car.status.slice(1) : `For ${car.status.charAt(0).toUpperCase() + car.status.slice(1)}`}
                 </Badge>
             </div>
             </Link>
+
         <CardContent className="p-4 xs">
           <div className="flex justify-between items-start">
             <div>
@@ -107,7 +113,11 @@ export function CarCard({ car, onDelete, onStatusChange}) {
           {/* Rating section */}
           <div className="mt-3">
             <div className="flex items-center">
-              <div className="flex mr-2"><RatingStars rating={car.rates} size="sm" interactive={false} /></div>
+              <div className="flex mr-2">
+              <Suspense fallback={<div>Loading rating...</div>}>
+            <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
+          </Suspense>
+                </div>
               <span className="text-sm font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
                 {car.rates} ({car.reviews.length} {car.reviews.length === 1 ? "review" : "reviews"})
               </span>
@@ -151,7 +161,11 @@ export function CarCard({ car, onDelete, onStatusChange}) {
                                 {new Date(review.created_at).toLocaleDateString()}
                                 </p>
                             </div>
-                            <div className="flex"> <RatingStars rating={review.rating} size="sm" interactive={false} /></div>
+                            <div className="flex">  
+                              <Suspense fallback={<div>Loading rating...</div>}>
+                                  <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
+                            </Suspense>
+                            </div>
                             </div>
                             <p>{review.comment}</p>
                             <Separator />
@@ -244,6 +258,11 @@ export function CarCard({ car, onDelete, onStatusChange}) {
           </DropdownMenu>
         </CardFooter>
       </Card>
+
+             
+
+
+      
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

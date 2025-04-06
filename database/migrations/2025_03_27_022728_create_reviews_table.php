@@ -19,6 +19,8 @@ return new class extends Migration
             $table->text('comment')->nullable();
             $table->decimal('rating', 3, 2)->nullable(); // Optional review text
             $table->timestamps();
+
+            $table->index(['car_id','user_id','rating']);
         });
     }
 

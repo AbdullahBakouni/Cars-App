@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Car;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,12 +40,26 @@ class CompanyController extends Controller
     public function show(Request $request, $id)
     {
         // Retrieve the company with related users and cars
-        $company = Company::with(['user', 'cars', 'reviews', 'cars.images', 'reviews.user'])
-                          ->findOrFail($id);
+        $company = Company::with([
+            'user.phones' => function ($query) {
+                $query->select('user_id', 'number'); // You must include foreign key 'user_id'
+            },
+            'reviews.user',
+            'user',
+            'reviews'
+        ]) ->findOrFail($id);
+                         
         // Sorting logic
         $sortOption = $request->query('sort', 'featured');
     
-        $cars = $company->cars();
+        $cars = Car::select('id', 'year', 'price', 'rates', 'brand', 'model', 'description', 'mileage', 'currency', 'company_id','created_at')
+        ->where('company_id', $company->id)
+        ->with([
+            // Get only the first image per car
+            'images' => function ($query) {
+                $query->select('id', 'car_id', 'image_path')->limit(1);
+            }
+        ]);
         
         switch ($sortOption) {
             case 'price-low':
@@ -65,7 +80,7 @@ class CompanyController extends Controller
                 break;
         }
     
-        $company->cars = $cars->get();
+        $company->setRelation('cars', $cars->get());
     
         $reviewsByUser = $company->reviews->groupBy('user_id');
         $user = Auth::user();

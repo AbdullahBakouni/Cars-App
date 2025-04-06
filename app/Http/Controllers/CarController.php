@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,105 +36,76 @@ class CarController extends Controller
     public function store(CarRequest $request)
     {
         try {
-            // Exclude unnecessary fields for the car creation
+            DB::beginTransaction(); // ✅ ضمان تنفيذ جميع العمليات أو إلغاء الكل
+            
             $validatedData = $request->validated();
             $data = Arr::except($validatedData, ['images', 'company_name', 'company_logo', 'tags', 'phone', 'company_location']);
+    
             if ($request->has('price')) {
-                $data['price'] = (float) $request->price;  // Ensure price is an float
+                $data['price'] = (float) $request->price; // ✅ التأكد من أن السعر رقم عشري
             }
-            // Get the authenticated user
+    
             $user = Auth::user();
-        
             if (!$user instanceof User) {
                 return response()->json(['error' => 'User is not authenticated'], 401);
             }
     
-            // Create the car
-            if ($request->has('phone') && !empty($request->phone)) {
-                // Remove non-numeric characters
-                $normalizedPhone = preg_replace('/\D/', '', $request->phone);  // Remove anything non-numeric
-              // You can remove this line later, it's for debugging
-                
-                $normalizedPhone = preg_replace('/\D/', '', $request->phone);  // Remove anything non-numeric
+            // ✅ معالجة رقم الهاتف إن وجد
+            if ($request->filled('phone')) {
+                $normalizedPhone = preg_replace('/\D/', '', $request->phone);
     
-    // Case 1: If the phone starts with 09 and is 10 digits long
-            if (substr($normalizedPhone, 0, 2) === '09' && strlen($normalizedPhone) === 10) {
-                // If the number starts with 09, replace it with +963
-                $normalizedPhone = '+963 ' . substr($normalizedPhone, 1);  // Replace 0 with +963
-            } 
-            // Case 2: If the phone starts with 963 and is 11 digits long (already normalized without the +)
-            elseif (substr($normalizedPhone, 0, 3) === '963' && strlen($normalizedPhone) === 12) {
-                // If the number starts with 963, add +963 to the front and format it
-                $normalizedPhone = '+963 ' . substr($normalizedPhone, 3);  // Keep +963 and add the remaining digits
-            } 
-     else {
-        return response()->json(['error' => 'Invalid phone number format. It should start with +963 or 09.'], 400);
-    }
-            
-                // Check if the phone already exists for the user
-                $phone = $user->phones()->where('number', $normalizedPhone)->first();
-            
-                if (!$phone) {
-                    // If the phone doesn't exist, create a new phone entry
-                    $phone = $user->phones()->create([
-                        'number' => $normalizedPhone,
-                    ]);
+                if (substr($normalizedPhone, 0, 2) === '09' && strlen($normalizedPhone) === 10) {
+                    $normalizedPhone = '+963 ' . substr($normalizedPhone, 1);
+                } elseif (substr($normalizedPhone, 0, 3) === '963' && strlen($normalizedPhone) === 12) {
+                    $normalizedPhone = '+963 ' . substr($normalizedPhone, 3);
+                } else {
+                    return response()->json(['error' => 'Invalid phone number format. It should start with +963 or 09.'], 400);
                 }
-            
-                // Associate the car with the phone
+    
+                // ✅ البحث عن الهاتف أو إنشاؤه إن لم يكن موجودًا
+                $phone = $user->phones()->firstOrCreate(['number' => $normalizedPhone]);
                 $data['phone_id'] = $phone->id;
             }
-            
-
-
-            $car = $user->cars()->create($data);
-            
     
-            // Handle images
+            // ✅ إنشاء السيارة
+            $car = $user->cars()->create($data);
+    
+            // ✅ معالجة الصور
             if ($request->hasFile('images')) {
+                $images = [];
                 foreach ($request->file('images') as $image) {
                     $path = $image->store('car_images', 'public');
-                    CarImage::create([
-                        'car_id' => $car->id,
-                        'image_path' => $path,
-                    ]);
+                    $images[] = ['car_id' => $car->id, 'image_path' => $path];
                 }
+                CarImage::insert($images); // ✅ إدخال دفعة واحدة لتحسين الأداء
             }
     
-            // Handle company details
-            if (($request->has('company_name') && !empty($request->company_name)) || ($request->hasFile('company_logo') && $request->file('company_logo') !== null)) {
-                $logoPath = null;
-                if ($request->hasFile('company_logo')) {
-                    $logoPath = $request->file('company_logo')->store('logos', 'public');
-                }
-            
-                $company = Company::create([
-                    'user_id' => $user->id,
-                    'company_name' => $request->company_name ?? 'Default Company',
-                    'logo_path' => $logoPath,
-                    'location' => $request->company_location,
-                ]);
-            
-                $car->company_id = $company->id;
-                $car->save(); 
+            // ✅ إنشاء الشركة إن كانت البيانات متوفرة
+            if ($request->filled('company_name') || $request->hasFile('company_logo')) {
+                $logoPath = $request->hasFile('company_logo') ? $request->file('company_logo')->store('logos', 'public') : null;
+                $company = Company::firstOrCreate(
+                    ['user_id' => $user->id, 'company_name' => $request->company_name],
+                    ['logo_path' => $logoPath, 'location' => $request->company_location]
+                );
+                $car->update(['company_id' => $company->id]);
             }
     
-            // Save tags
-            if ($request->has('tags')) {
+            // ✅ حفظ الوسوم (Tags)
+            if ($request->filled('tags')) {
                 $tags = is_string($request->tags) ? explode(',', $request->tags) : $request->tags;
-                foreach ($tags as $tagName) {
-                    Tag::create([
-                        'name' => trim($tagName),
-                        'car_id' => $car->id
-                    ]);
-                }
+                $tagData = array_map(fn($tag) => ['name' => trim($tag), 'car_id' => $car->id], $tags);
+                Tag::insert($tagData); // ✅ إدخال دفعة واحدة
             }
+    
+            DB::commit(); // ✅ تنفيذ جميع العمليات
     
             return redirect()->route('car.show', $car->id)->with("success", "Car created successfully.");
         } catch (\Exception $e) {
+            DB::rollBack(); // ❌ إلغاء العمليات في حال حدوث خطأ
             return response()->json(['error' => 'Something went wrong: ' . $e->getMessage()], 500);
         }
     }
+    
     
     
     
@@ -145,44 +117,43 @@ class CarController extends Controller
     public function show($id)
     {
         try {
-            // Retrieve the car with related data
-            $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($id);
             $user = Auth::user();
+    
+            // 🚀 Optimized eager loading with selected columns only
+            $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($id);
+            // 💡 Optimized grouping for reviews by user_id
             $reviewsByUser = $car->reviews->groupBy('user_id');
-              // Get the price of the car (in the same currency as the suggested cars)
-                    $carPrice = $car->price;
-                    $carCurrency = $car->currency;
-                    // Calculate a price tolerance for similar price (e.g., within 10% of the car's price)
-                    $priceTolerance = 0.1 * $carPrice;  // Adjust tolerance as needed
-                    $minPrice = $carPrice - $priceTolerance;
-                    $maxPrice = $carPrice + $priceTolerance;
-
-                    // Get suggested cars based on body type, model, cylinders, and close price range (same model, body type, cylinders)
-                    $suggestedCarsQuery = Car::with(['images','tags'])->where('body_type', $car->body_type)
-                                            ->where('model', $car->model)
-                                            ->where('brand', $car->brand)
-                                            ->where('year', $car->year)
-                                            ->where('cylinders', $car->cylinders)
-                                            ->where('id', '!=', $car->id)  // Exclude the current car
-                                            ->limit(5);  // Limit to 5 suggested cars
-
-                    // Only filter by price if the currencies match
-                    if ($carCurrency) {
-                        $suggestedCarsQuery->where('currency', $carCurrency)  // Ensure the car and suggested car are in the same currency
-                                        ->whereBetween('price', [$minPrice, $maxPrice]);  // Filter price within the tolerance range
-                    }
-
-                    // Retrieve the suggested cars
-                    $suggestedCars = $suggestedCarsQuery->get();
-
-            // Return an Inertia response
+    
+            // 💰 Price logic
+            $carPrice = $car->price;
+            $carCurrency = $car->currency;
+            $tolerance = $carPrice * 0.1;
+            $minPrice = $carPrice - $tolerance;
+            $maxPrice = $carPrice + $tolerance;
+    
+            // 🚀 Suggested cars: minimal fields, smart filters
+            $suggestedCars = Car::with(['images:id,car_id,image_path', 'tags:id,name'])
+                ->select(['id', 'brand', 'model', 'year', 'body_type', 'cylinders', 'price', 'currency'])
+                ->where([
+                    ['body_type', $car->body_type],
+                    ['model', $car->model],
+                    ['brand', $car->brand],
+                    ['year', $car->year],
+                    ['cylinders', $car->cylinders],
+                    ['id', '!=', $car->id],  // Exclude the current car
+                    ['currency', $carCurrency],
+                ])
+                ->whereBetween('price', [$minPrice, $maxPrice])
+                ->limit(5)
+                ->get();
+    
             return Inertia::render('cars_details/Show', [
                 'car' => $car,
                 'reviewsByUser' => $reviewsByUser,
                 'suggestedCars' => $suggestedCars,
                 'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
+                    ? $user->hasVerifiedEmail()
+                    : false,
             ]);
         } catch (\Exception $e) {
             return Inertia::render('Errors/NotFound', [
@@ -190,6 +161,8 @@ class CarController extends Controller
             ])->toResponse(request());
         }
     }
+    
+    
     
 
     /**
@@ -401,10 +374,8 @@ class CarController extends Controller
     
             session()->flash("success","Car was deleted successfully");
         // Redirect with success message, updated cars, and email verification status
-            return redirect()->route('cars.my'); // Assuming you have a route like this
-            // ->with('cars', Car::with(['images','reviews', 'reviews.user'])->where('user_id', $user->id)->get())
-            // ->with('successdeleted', $successdeleted)
-            // ->with('hasVerifiedEmail', $hasVerifiedEmail); // Pass the email verification status
+            return redirect()->route('cars.my'); 
+            
     }
     
 
@@ -430,8 +401,7 @@ class CarController extends Controller
 
 
 
-
-public function getCarsByBodyType(Request $request)
+    public function getCarsByBodyType(Request $request)
 {
     $user = Auth::user();
     $bodyTypeId = $request->query('body_type');
@@ -440,34 +410,39 @@ public function getCarsByBodyType(Request $request)
     $sortBy = $request->query('sort', 'posted'); // Default sorting by 'posted'
     $price = $request->query('maxPrice');
     $currency = $request->query('currency');
-    $categoryName = $request->query('category'); // الفئة المختارة
+    $categoryName = $request->query('category');
+    $currentPage = $request->query('page', 1); // الفئة المختارة
 
     // بناء الاستعلام الأساسي مع العلاقات المطلوبة
-    $query = Car::with(['images', 'tags','company']);
+    $query = Car::select('id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price','currency','status')
+    ->with(['images' => function ($query) {
+        $query->select('car_id', 'image_path')->limit(1); // Limit to the first image
+    }, 'tags', 'company']);
 
-            switch ($sortBy) {
-                case 'price-low': 
-                    $query->orderBy('price', 'asc');
-                    break;
-                case 'price-high': 
-                    $query->orderBy('price', 'desc');
-                    break;
-                case 'year-new': 
-                    $query->orderBy('year', 'desc');
-                    break;
-                case 'year-old': 
-                    $query->orderBy('year', 'asc');
-                    break;
-                case 'mileage-low': 
-                    $query->orderBy('mileage', 'asc');
-                    break;
-                case 'mileage-high': 
-                    $query->orderBy('mileage', 'desc');
-                    break;
-                default: 
-                    $query->latest(); // Default sorting by the latest
-                    break;
-            }
+    switch ($sortBy) {
+        case 'price-low':
+            $query->orderBy('price', 'asc');
+            break;
+        case 'price-high':
+            $query->orderBy('price', 'desc');
+            break;
+        case 'year-new':
+            $query->orderBy('year', 'desc');
+            break;
+        case 'year-old':
+            $query->orderBy('year', 'asc');
+            break;
+        case 'mileage-low':
+            $query->orderBy('mileage', 'asc');
+            break;
+        case 'mileage-high':
+            $query->orderBy('mileage', 'desc');
+            break;
+        default:
+            $query->orderBy('created_at', 'desc');// Default sorting by the latest
+            break;
+    }
+
     // 🔹 تصفية حسب نوع الجسم
     if ($bodyTypeId) {
         $query->where('body_type', $bodyTypeId);
@@ -494,7 +469,7 @@ public function getCarsByBodyType(Request $request)
     } elseif ($categoryName === "Family") {
         $query->where('body_type', 'suv')
               ->whereIn('doors', [4, 5]);
-    } elseif ($categoryName === "Elecrtic") {
+    } elseif ($categoryName === "Electric") {
         $query->where('cylinders', 'Electric');
     } elseif ($categoryName === "Luxury") {
         $query->where('body_type', 'sedan')
@@ -554,20 +529,24 @@ public function getCarsByBodyType(Request $request)
         $price = (float) $price;
 
         // البحث عن السيارات بناءً على السعر القريب
-        $cars = Car::whereBetween('price', [$price - 500, $price + 500])
-            ->where('currency', $currency) // Filter by currency
-            ->orderByRaw("ABS(price - ?)", [$price]) // ترتيب حسب أقرب سعر
-            ->with(['images', 'tags']) // جلب الصور والعلامات
-            ->get();
+        $cars = Car::select('id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price','currency','status')
+        ->whereBetween('price', [$price - 500, $price + 500])
+        ->where('currency', $currency) // Filter by currency
+        ->orderByRaw("ABS(price - ?)", [$price]) // Sort by closest price
+        ->with(['images' => function ($query) {
+            $query->select('car_id', 'image_path')->limit(1); // Limit to the first image only
+        }, 'tags']) // Load images and tags
+        ->paginate(40);
+    
     } else {
-        // تنفيذ الاستعلام العادي عند عدم وجود فلتر للسعر فقط
-        $cars = $query->get();
+        // تنفيذ الاستعلام العادي مع التصفية وتطبيق التصفح
+        $cars = $query->paginate(40);
     }
 
-    // 🔹 إرسال البيانات إلى صفحة واحدة فقط
+    // 🔹 إرسال البيانات إلى صفحة واحدة مع الحفاظ على الفلاتر
     return Inertia::render('cars/CarSearchResults', [
         'cars' => $cars,
-        'totalResults' => $cars->count(),
+        'totalResults' => $cars->total(),
         'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
             ? $user->hasVerifiedEmail()
             : false,
@@ -582,234 +561,90 @@ public function getCarsByBodyType(Request $request)
     ]);
 }
 
-public function searchByPrice(Request $request)
-{
-    $price = $request->query('maxPrice');
-    $user = Auth::user();
-    // تأكد من أن السعر مدخل كرقم صحيح وإلا استخدم قيمة افتراضية
-    if (!is_numeric($price)) {
-        return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
-    }
-
-    $price = (float) $price; // تحويل إلى رقم عشري لضمان صحة الحسابات
-
-    // البحث عن السيارات بالسعر المحدد أو الأقرب إليه
-    $cars = Car::whereBetween('price', [$price - 500, $price + 500])
-        ->orderByRaw("ABS(price - ?)", [$price]) // استخدام binding لمنع الأخطاء
-        ->limit(10)
-        ->with(['images', 'tags']) // جلب الصور والعلامات
-        ->get();
-
-    return Inertia::render('Cars_By_Price/SearchResults', ['cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-]);
-}
-
-
-public function filter(Request $request)
-{
-    $user = Auth::user();
-    $categoryName = $request->query('category');
     
-    // Start the car query with eager loading for images and tags
-    $query = Car::with(['images', 'tags']);
+
+    public function myCars(Request $request)
+    {
+        $user = Auth::user();
     
-    // Apply filters based on the selected category
-    if ($categoryName === "Economy") {
-        $query->where(function ($query) {
-            $query->where('currency', 'SYP')
-                  ->where('price', '<=', 50000000);
-        })
-        ->orWhere(function ($query) {
-            $query->where('currency', 'USD')
-                  ->whereBetween('price', [2000, 5000]);
-        });
-    } elseif ($categoryName === "Family") {
-        $query->where('body_type', 'suv')
-              ->whereIn('doors', [4, 5]);
-    } elseif ($categoryName === "Elecrtic") {
-        $query->where('cylinders', 'Electric');
-    } elseif ($categoryName === "Luxury") {
-        $query->where('body_type', 'sedan');
-        $query->where(function ($query) {
-            $query->where('currency', 'SYP')
-                  ->whereBetween('price', [800000000, 1200000000]);
-        })
-        ->orWhere(function ($query) {
-            $query->where('currency', 'USD')
-                  ->whereBetween('price', [180000, 220000]);
-        });
-    } elseif ($categoryName === "Sport") {
-        $query->where('body_type', 'coupe')
-              ->whereIn('cylinders', [6, 8, 10]);
-        $query->where(function ($query) {
-            $query->where('currency', 'SYP')
-                  ->whereBetween('price', [400000000, 600000000]);
-        })
-        ->orWhere(function ($query) {
-            $query->where('currency', 'USD')
-                  ->whereBetween('price', [490000, 510000]);
-        });
-    } elseif ($categoryName === "SuperCars") {
-        $query->where('body_type', 'coupe')
-              ->whereIn('cylinders', [10, 12 , 16]);
-        $query->where(function ($query) {
-            $query->where('currency', 'SYP')
-                  ->whereBetween('price', [800000000, 1200000000]);
-        })
-        ->orWhere(function ($query) {
-            $query->where('currency', 'USD')
-                  ->whereBetween('price', [180000, 220000]);
-        });
-    } elseif ($categoryName === "Adventure") {
-        $query->where('body_type', 'suv')
-              ->whereIn('cylinders', [6, 8]);
-        $query->where(function ($query) {
-            $query->where('currency', 'SYP')
-                  ->whereBetween('price', [300000000, 500000000]);
-        })
-        ->orWhere(function ($query) {
-            $query->where('currency', 'USD')
-                  ->whereBetween('price', [60000, 80000]);
-        });
-    } elseif ($categoryName === "Utility") {
-        $query->where('body_type', 'minivan');
-        $query->where('body_type', 'pickup');
-    }
-
-    // Get the cars based on the applied filters
-    $cars = $query->get();
-
-    // Return the filtered cars based on the category
-    if ($categoryName === "Economy") {
-        return Inertia::render('economy-cars/Economy', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    }
-        elseif ($categoryName === "Family") {
-        return Inertia::render('family-cars/Family', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    } elseif ($categoryName === "Elecrtic") {
-        return Inertia::render('electric-cars/Electric', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    } elseif ($categoryName === "Luxury") {
-        return Inertia::render('luxury-cars/Luxury', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    } elseif ($categoryName === "Sport") {
-        return Inertia::render('sport-cars/Sport', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    } elseif ($categoryName === "SuperCars") {
-        return Inertia::render('super-cars/SuperCars', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    } elseif ($categoryName === "Adventure") {
-        return Inertia::render('adventure-cars/Adventure', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    } elseif ($categoryName === "Utility") {
-        return Inertia::render('utility-cars/Utility', [
-            'cars' => $cars,
-            'totalResults' => $cars->count(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-        ]);
-    }
-
-    // Default page (in case category doesn't match)
-    return redirect("/");
-}
-public function myCars(Request $request)
-{
-    $user = Auth::user();
-    $cars = Car::with(['images','reviews', 'reviews.user'])
-        ->where('user_id', $user->id)
-        ->get();
-
-    // Check if there's a status update request
-    if ($request->has('status') && $request->has('car_id')) {
-        // Validate the status
-        $request->validate([
-            'status' => 'required|string|in:sell,rent,rented,sold',
-        ]);
-
-        // Find the car by ID
-        $car = Car::findOrFail($request->car_id);
-            // Otherwise, update the status
+        // Get sort option from the request (default to 'default' if not provided)
+        $sortOption = $request->query('sort', 'default');
+    
+        // Get the current page from the request (default to page 1 if not provided)
+        $currentPage = $request->input('page', 1);
+    
+        // Handle car status update if needed
+        if ($request->has('status') && $request->has('car_id')) {
+            $request->validate([
+                'status' => 'required|string|in:sell,rent,rented,sold',
+            ]);
+    
+            // Find the car and update the status
+            $car = Car::where('user_id', $user->id)->findOrFail($request->car_id);
             $car->status = $request->status;
             $car->save();
-
-        // Return the updated cars list with success message
+    
+            // After updating, fetch the cars again with the same sorting
+            $cars = $this->getUserCars($user, $sortOption, $currentPage);
+    
+            // Return the updated cars and other relevant info
+            return Inertia::render('user-cars/UserCars', [
+                'cars' => $cars,
+                'success' => "Car status updated",
+                'sortOption' => $sortOption,
+                'hasVerifiedEmail' => $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+                    ? $user->hasVerifiedEmail()
+                    : false,
+            ]);
+        }
+    
+        // Fetch cars with sorting and pagination
+        $cars = $this->getUserCars($user, $sortOption, $currentPage);
+    
+        // Return the cars with other relevant info
         return Inertia::render('user-cars/UserCars', [
-            'cars' => Car::with(['images','reviews', 'reviews.user'])->where('user_id', $user->id)->get(),
-            'success' => "Car status updated",
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+            'cars' => $cars,
+            'success' => session('success'),
+            'sortOption' => $sortOption,
+            'hasVerifiedEmail' => $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
                 ? $user->hasVerifiedEmail()
                 : false,
         ]);
     }
-
-    // Return the cars without any update
-    return Inertia::render('user-cars/UserCars', [
-        'cars' => $cars,
-        'success' => session('success'),
-        'hasVerifiedEmail' =>$user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-        ? $user->hasVerifiedEmail()
-        : false,
-    ]);
-}
-
-
-
-
-// public function updateStatus(Request $request, Car $car)
-// {
-//     $request->validate([
-//         'status' => 'required|string|in:sell,rent',
-//     ]);
-
-//     $car->status = $request->status;
-//     $car->save();
-
-//     return Inertia::render('user-cars/UserCars', [
-//         'success' => "Car status updated from",
-//     ]);
-// }
-
+    
+    
+    // 🔁 Shared sorting logic
+    private function getUserCars($user, $sortOption, $currentPage)
+    {
+        $carsQuery = Car::with(['images' => function ($query) {
+            $query->select('car_id', 'image_path')->limit(1);
+        }, 'reviews', 'reviews.user'])
+        ->where('user_id', $user->id)
+        ->select(['id', 'year', 'price', 'rates', 'brand', 'model', 'currency', 'status','created_at']);
+    
+        // Apply sorting
+        switch ($sortOption) {
+            case 'price-low-to-high':
+                $carsQuery->orderBy('price', 'asc');
+                break;
+            case 'price-high-to-low':
+                $carsQuery->orderBy('price', 'desc');
+                break;
+            case 'rating-high-to-low':
+                $carsQuery->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'desc');
+                break;
+            case 'rating-low-to-high':
+                $carsQuery->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'asc');
+                break;
+            default:
+                $carsQuery->orderBy('created_at', 'desc');
+                break;
+        }
+    
+        // Apply pagination
+        return $carsQuery->paginate(20);  // Adjust the number of cars per page if needed
+    }
+    
+    
 }
 

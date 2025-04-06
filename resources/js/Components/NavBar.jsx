@@ -46,18 +46,20 @@ const NavBar = ({auth,status,hasVerifiedEmail,currency,resetpassstatus}) => {
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
             <div className="font-bold text-2xl text-gray-800 xs-range:text-xs">
-              <span className="text-blue-500">m</span>
+              <span className="text-[#9f372e]">m</span>
               <span>otom</span>
-              <span className="text-blue-500">.</span>
+              <span className="text-[#9f372e]">.</span>
               <span>com</span>
             </div>
+            {/* <img src="/images/logo.jpg" alt="" width={50} height={50} className="xs-range:w-9 xs-range:h-9"/> */}
+             
           </Link>
 
           {/* Filters Button and Search Bar */}
           <div className="flex items-center flex-1 max-w-xl mx-4">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="rounded-r-none border-r-0 bg-[#962118] text-white hover:bg-blue-400 hover:text-white xs-range:p-2">
+                <Button variant="outline" className="rounded-r-none border-r-0 bg-[#9f372e] text-white hover:bg-blue-400 hover:text-white xs-range:p-2">
                   <SlidersHorizontal className="h-4 w-4 xs-range:h-2 xs-range:w-2" />
                   <span className="ml-2 hidden sm:inline">Filters</span>
                 </Button>

@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('body_type');
             $table->decimal('mileage', 15, 2);
             $table->enum('currency', ['SYP', 'USD'])->default('SYP');
-            $table->enum('status', ['sell', 'rent','rented','sold'])->default('sell');
+            $table->enum('status', ['sell', 'rent', 'rented', 'sold'])->default('sell');
             $table->decimal('rates', 3, 2)->default(0);
             $table->integer('engine')->nullable();
             $table->string('color')->nullable();
@@ -34,6 +34,19 @@ return new class extends Migration
             $table->string('fuel')->nullable();
             $table->decimal('price', 15, 2);
             $table->timestamps();
+
+           
+        $table->index(['body_type', 'brand', 'model']); // فهرس مركب للتصفية حسب نوع الجسم، الماركة والموديل
+        $table->index(['brand', 'model', 'price']); // فهرس مركب للبحث عن الماركة، الموديل والسعر
+        $table->index(['body_type', 'price', 'currency']); // فهرس مركب للتصفية حسب نوع الجسم، السعر والعملة
+        $table->index(['cylinders', 'price']); // فهرس مركب للتصفية حسب الأسطوانات والسعر
+        $table->index(['doors', 'price']); // فهرس مركب للتصفية حسب الأبواب والسعر
+        $table->index(['engine', 'price']); // فهرس مركب للتصفية حسب المحرك والسعر
+        $table->index(['year']); // فهرس على سنة التصنيع لتسريع الفرز
+        $table->index(['mileage']); // فهرس على المسافة المقطوعة لتسريع الفرز
+        $table->index(['currency', 'price']); // فهرس مركب للعملة والسعر
+        $table->index(['status']); // فهرس على الحالة لتسريع الفلترة
+        $table->index(['price']);                // فهرس على حالة السيارة لتسريع البحث عن السيارات المباعة أو المؤجرة
         });
     }
 

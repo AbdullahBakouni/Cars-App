@@ -125,19 +125,20 @@ useEffect(() => {
             {Array(24)
               .fill(0)
               .map((_, i) => (
-                <div key={i} className="w-1 h-1 rounded-full bg-blue-400"></div>
+                <div key={i} className="w-1 h-1 rounded-full bg-[#9f372e]"></div>
               ))}
           </div>
         </div>
 
         {/* Car Image and Overlay */}
         <div className="relative w-full md:h-[500px] flex items-center justify-center bg-gray-200 md:-mt-12 xs-range:bg-gray-50">
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 -top-[44px] right-12 flex items-center justify-center">
             <div className="text-4xl md:text-6xl font-bold text-gray-800 flex items-center xs-range:text-3xl">
-              <span>sayart</span>
-              <span className="text-[#962118]">ii</span>
-              <span>.com</span>
-              <span className="mx-8 text-gray-300">|</span>
+              <span className="text-[#9f372e]">X</span>
+              <span>Cars</span>
+              <span className="text-[#9f372e]">.</span>
+              <span>com</span>
+              <span className="mx-8 text-[#9f372e]">|</span>
               <span>Syria</span>
             </div>
           </div>
@@ -174,7 +175,7 @@ useEffect(() => {
                   onChange={(e) => setMaxPrice(e.target.value)}
                 />
               </div>
-              <Button onClick={handleSearch} className="bg-[#962118] hover:bg-blue-600 text-white px-8 h-10 mt-4 md:mt-6 xs-range:px-4">
+              <Button onClick={handleSearch} className="bg-[#9f372e] hover:bg-blue-600 text-white px-8 h-10 mt-4 md:mt-6 xs-range:px-4">
                 Search <span className="ml-1">→</span>
               </Button>
             </div>
@@ -204,7 +205,7 @@ useEffect(() => {
         {bodyTypes.map((type) => (
             <div key={type.id} className="flex flex-col items-center justify-center cursor-pointer"
             onClick={() => handleBodyTypeClick(type.id)}>
-            <div className="w-10 h-10 flex items-center justify-center mb-1 text-[#962118]">{type.icon}</div>
+            <div className="w-10 h-10 flex items-center justify-center mb-1 text-[#9f372e]">{type.icon}</div>
             <span className="text-[10px] text-center">{type.label}</span>
           </div>
         ))}

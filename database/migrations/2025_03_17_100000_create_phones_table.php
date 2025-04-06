@@ -16,6 +16,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Foreign key to users table
             $table->string('number')->unique(); // Store the phone number
             $table->timestamps();
+
+            $table->index('user_id');
         });
     }
 

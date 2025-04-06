@@ -1,26 +1,37 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn, Star} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import NavBar from '@/Components/NavBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import { Label } from '@/Components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { Inertia } from '@inertiajs/inertia';
-import RatingStars from '@/Components/RatingStars';
-
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
+const NavBar = lazy(() => import("@/Components/NavBar"));
+const RatingStars = lazy(() => import("@/Components/RatingStars"));
 const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [sortDialogOpen, setSortDialogOpen] = useState(false)
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
-  const [visibleCars, setVisibleCars] = useState(0);
    // Get body_type from URL
    const queryParams = new URLSearchParams(window.location.search);
    const sortoption = queryParams.get("sort");
    const [pendingSortOption, setPendingSortOption] = useState(sortoption || "posted");
    const { currency } = usePage().props;
-    const { resetpassstatus } = usePage().props;
+  const { resetpassstatus } = usePage().props;
+  const currentPage = cars.current_page;
+  const totalPages = cars.last_page;
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 400) {
@@ -33,40 +44,21 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
-  useEffect(() => {
-    const handleScroll = () => {
-      // الحصول على كل البطاقات
-      const cards = document.querySelectorAll('.car-card'); 
-      
-      let count = 0;
-      cards.forEach((card) => {
-        const rect = card.getBoundingClientRect();
-        if (rect.top < window.innerHeight && rect.bottom > 0) {
-          count++;
-        }
-      });
-  
-      setVisibleCars(count);
-    };
-  
-    window.addEventListener("scroll", handleScroll);
-    handleScroll(); // لتحديث العدد فور تحميل الصفحة
-  
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-  
   const applySorting = () => {
     setSortDialogOpen(false);
+    // Reset page to 1 when sorting is changed
     Inertia.visit(route('cars.byBodyType', { 
-        body_type:queryParams.get("body_type"),
-        brand_name:queryParams.get("brand_name"),
-        model_name:queryParams.get("model_name"),
-        maxPrice :queryParams.get("maxPrice"),
-        category:queryParams.get("category"),
-        currency:currency,
-        sort: pendingSortOption 
+        body_type: queryParams.get("body_type"),
+        brand_name: queryParams.get("brand_name"),
+        model_name: queryParams.get("model_name"),
+        maxPrice: queryParams.get("maxPrice"),
+        category: queryParams.get("category"),
+        currency: currency,
+        sort: pendingSortOption,
+        page: currentPage  // Reset to page 1
     }), { preserveState: true });
-  };
+};
+
   
 const getSortLabel = (value) => {
   const options = {
@@ -92,17 +84,108 @@ const getSortLabel = (value) => {
       } else {
         setLoginDialogOpen(true)
       }
-    };
+   };
+
+    const renderPaginationItems = () => {
+      const items = [];
+    
+      // Always show first page
+      items.push(
+        <PaginationItem key="first">
+          <PaginationLink
+            onClick={() => handlePageChange(1)}
+            isActive={currentPage === 1}
+            className="cursor-pointer"
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>,
+      );
+    
+      // Show ellipsis if needed
+      if (currentPage > 3) {
+        items.push(
+          <PaginationItem key="ellipsis-1">
+            <PaginationEllipsis/>
+          </PaginationItem>,
+        );
+      }
+    
+      // Show current page and surrounding pages
+      for (
+        let i = Math.max(2, currentPage - 1);
+        i <= Math.min(totalPages - 1, currentPage + 1);
+        i++
+      ) {
+        // Skip first and last (already shown)
+        if (i === 1 || i === totalPages) continue;
+    
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              onClick={() => handlePageChange(i)}
+              isActive={currentPage === i}
+              className="cursor-pointer"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>,
+        );
+      }
+    
+      // Show ellipsis if needed
+      if (currentPage < totalPages - 2) {
+        items.push(
+          <PaginationItem key="ellipsis-2">
+            <PaginationEllipsis />
+          </PaginationItem>,
+        );
+      }
+    
+      // Always show last page if more than 1 page
+      if (totalPages > 1) {
+        items.push(
+          <PaginationItem key="last">
+            <PaginationLink
+              onClick={() => handlePageChange(totalPages)}
+              isActive={currentPage === totalPages}
+              className="cursor-pointer"
+            >
+              {totalPages}
+            </PaginationLink>
+          </PaginationItem>,
+        );
+      }
+    
+      return items;
+  };
+
+  const handlePageChange = (page) => {
+    Inertia.get(route("cars.byBodyType"), { 
+        page, 
+        sort: pendingSortOption, // Ensure the sort option is passed
+        preserveState: true,  
+        preserveScroll: true  
+    });
+};
   return (
     <>
-    <Head title={cars.length > 0 ? cars[0].model : "No Cars"} />
+ <Head title={cars.data.length > 0 ? `Page ${cars.current_page} - ${cars.data.length} Cars` : "No Cars"} />
+
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-     <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus={resetpassstatus}/>
+    <Suspense fallback={<div>Loading...</div>}>
+            <NavBar
+              auth={auth ? auth : ""}  // Ensure it's a string, or provide a default value
+              hasVerifiedEmail={hasVerifiedEmail || false}  // Ensure it's a boolean
+              currency={currency || "SYP"}  // Ensure it's a string
+              resetpassstatus={resetpassstatus || ""}  // Ensure it's a string
+            />
+              </Suspense>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-  {cars.length === 0 ? (
+  {cars.data.length === 0 ? (
     // Display message if no cars are available
     <div className="flex justify-center items-center h-64 text-lg text-gray-500">
       <p>There are no cars yet</p>
@@ -110,21 +193,22 @@ const getSortLabel = (value) => {
   ) : (
     // Display the list of cars if available
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      {cars.map((car) => (
-        <Card key={car.id} className="overflow-hidden hover:shadow-md transition-shadow car-card">
+      {cars.data.map((car) => (
+        <Card key={car.id} className="overflow-hidden hover:shadow-md transition-shadow">
           <div className="relative aspect-[4/3] bg-gray-100">
             {car.images && car.images.length > 0 && (
-              <img
-                src={`/storage/${car.images[0].image_path}`}
-                alt={`${car.year} ${car.make} ${car.model}`}
-                className="object-cover w-full h-full"
+             <LazyLoadImage
+              src={`/${car.images[0].image_path}`}
+              alt={`${car.year} ${car.brand} ${car.model}`}
+              className="object-cover h-full w-full"
+              effect="blur"
               />
             )}
-             <button className="absolute top-2 right-2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"
+             <button className="absolute top-2 right-2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center xs-range:w-5 xs-range:h-5"
             onClick={() => {
-              router.visit(route("car.show", { car: car.id }));  // Use { car: car.id }
+              router.visit(route("car.show", { car: car.id }));
             }}>
-                <Eye  className="w-4 h-4 text-gray-500" />
+                <Eye className="w-4 h-4 text-gray-500" />
                 </button>
           </div>
           <CardContent className="p-3">
@@ -138,19 +222,21 @@ const getSortLabel = (value) => {
             <span className='font-bold text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]'>{car.mileage} km</span>
             <span className="mx-1 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">•</span>
             </div>
-              <span className="text-xs font-bold xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
+              <span className="text-xs font-bold xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">
                 {car.description && car.description.split(' ').length > 4
                   ? `${car.description.split(' ').slice(0, 4).join(' ')}...`
                   : car.description}
               </span>
             </div>
-            <div className="flex items-center text-sm text-gray-500 mb-2 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
+            
+            <div className="flex items-center justify-between text-sm text-gray-500 mb-2 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
+            <div>
           {car.tags && car.tags.length > 0 ? (
             <div className="flex gap-2">
               {car.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag.id}
-                  className="bg-gray-200 px-2 py-1 rounded-full text-xs text-gray-600 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]"
+                  className="bg-gray-200 px-2 py-1 rounded-full text-xs text-gray-600 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]"
                 >
                   {tag.name}
                 </span>
@@ -160,8 +246,12 @@ const getSortLabel = (value) => {
               )}
             </div>
           ) : (
-            <span className="text-xs text-gray-500 xs-s-range:text-[9px] xs-s-range:leading-[8px]">{car.model}</span>
+            <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-500 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">{car.model}</span>
           )}
+        </div>
+        <div>
+        <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-500 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">For {car.status}</span>
+        </div>
         </div>
             <div className="flex items-center justify-between">
                 <span className="text-blue-500 font-medium xs-range:text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px]">
@@ -170,7 +260,9 @@ const getSortLabel = (value) => {
                     : new Intl.NumberFormat('en-US').format(car.price).replace(/,/g, '.') + " SYP"}
                 </span>
                 <div className="flex xs-range:text-xs">
-                   <RatingStars rating={car.rates} size="sm" interactive={false} />
+                   <Suspense fallback={<div>Loading rating...</div>}>
+                  <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
+                     </Suspense>
                 </div>
                 </div>
           </CardContent>
@@ -182,24 +274,53 @@ const getSortLabel = (value) => {
    {/* Sticky Footer */}
    <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t shadow-md h-[42px]">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Button variant="outline" className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white hover:text-white
+          <Button variant="outline" className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white hover:text-white xs-range:p-0
           -mt-3" onClick={() => setSortDialogOpen(true)}>
-            <ArrowDownWideNarrow className="h-4 w-4" />
-            <span>{sortoption ? getSortLabel(sortoption) : "Posted"}</span>
-
+            <ArrowDownWideNarrow className="h-4 w-4 xs-range:w-1 xs-range:h-1" />
+            <span className='xs-range:text-[9px] xs-range:leading-[9px] mr-1'>{sortoption ? getSortLabel(sortoption) : "Posted"}</span>
           </Button>
-          <div className="flex items-center gap-3">
+          <div>
+          {totalPages > 1 && (
+              <div className="flex justify-center items-center">
+                <Pagination className ="xs-range:text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px]">
+                  <PaginationContent >
+                    <PaginationItem > 
+                      <PaginationPrevious
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        className={`${
+                          currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"
+                        } xs-range:hidden xs-s-range:hidden`}
+                      />
+                    </PaginationItem>
+
+                    {renderPaginationItems()}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        className={`${
+                          currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"
+                        } xs-range:hidden xs-s-range:hidden`}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 justify-between">
             {showScrollButton && (
               <Button
                 onClick={scrollToTop}
-                className="rounded-full w-8 h-8 bg-blue-500 hover:bg-blue-600 flex items-center justify-center"
+                className="rounded-full w-8 h-8 bg-blue-500 hover:bg-blue-600 flex items-center justify-center 
+                xs-range:text-[9px] xs-range:leading-[9px] xs-range:p-0 xs-s-range:p-0"
                 aria-label="Scroll to top"
               >
-                <ChevronUp className="h-4 w-4" />
+                <ChevronUp className="h-4 w-4 xs-range:h-1 xs-range:w-1" />
               </Button>
             )}
-            <div className="text-sm text-gray-500">
-            {visibleCars}/{totalResults} vehicles
+            <div className="text-sm text-gray-500 xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[9px] xs-range:leading-[9px]">
+           {cars.data.length}/{totalResults} vehicles
             </div>
           </div>
         </div>

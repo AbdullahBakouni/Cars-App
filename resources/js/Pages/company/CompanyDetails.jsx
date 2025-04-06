@@ -7,9 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/Components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { UserRatingForm } from '@/Components/UserRatingForm';
-import { Inertia } from '@inertiajs/inertia';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Filter, Mail, MapPin, Phone, Star, X } from 'lucide-react';
+import { Filter, Mail, MapPin, Phone, Star, UserRoundPen, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
 
 const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}) => {
@@ -71,8 +70,8 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
             <div className="md:ml-auto flex flex-col sm:flex-row gap-3 justify-end">
               <Button variant="outline" className="flex-1 sm:flex-initial" onClick={handleButtonClick}>
                 <Phone className="mr-2 h-4 w-4" />{showPhoneNumber ? (
-                    <a href={`tel:${company.user.phone}`} className="w-full">
-                        Call {company.user.phone}
+                    <a href={`tel:${company.user.phones[0].number}`} className="w-full">
+                        Call {company.user.phones[0].number}
                     </a>
                     ) : (
                     "Show Number"
@@ -94,14 +93,14 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
             </div>
             <div className="flex items-center gap-2">
               <Phone className="h-5 w-5 text-gray-500 flex-shrink-0" />
-              <span className="text-gray-700">{company.user.phone}</span>
+              <span className="text-gray-700">{company.user.phones[0].number}</span>
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-gray-500 flex-shrink-0" />
-              <span className="text-gray-700">{company.user.email}</span>
+              <UserRoundPen  className="h-5 w-5 text-gray-500 flex-shrink-0" />
+              <span className="text-gray-700">{company.user.name}</span>
             </div>
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-gray-500 flex-shrink-0" />

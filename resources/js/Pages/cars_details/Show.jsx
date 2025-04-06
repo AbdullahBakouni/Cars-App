@@ -1,17 +1,17 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import { useState } from "react"
-import { X, ChevronLeft, ChevronRight, MessageCircle, Phone, Eye, Star } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, MessageCircle, Phone, Eye} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import RatingStars from '@/Components/RatingStars' 
 import { UserRatingForm } from '@/Components/UserRatingForm' 
 import { ShareButton } from '@/Components/ShareButton'
-import NavBar from '@/Components/NavBar'
 import { Head, router, usePage } from '@inertiajs/react'
 import { Avatar, AvatarFallback} from '@/Components/ui/avatar'
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
     const [showGallery, setShowGallery] = useState(false)
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -23,6 +23,9 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
     const carReviewsCount = car.reviews.filter(review =>review.comment).length;
     const companyReviewsCount = car.company?.reviews?.filter(review => review.comment)?.length || 0;
     const carFuel = car.fuel ? car.fuel.toUpperCase() : 'ELECTRIC';
+    const NavBar = lazy(() => import("@/Components/NavBar"));
+    const RatingStars = lazy(() => import("@/Components/RatingStars"));
+    
     const handleButtonClick = () => {
       setShowPhoneNumber(true);
     };
@@ -52,7 +55,14 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
         <>
         <Head title={car.brand} />
         <div className="min-h-screen bg-gray-50">
-        <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus = {resetpassstatus}/>
+              <Suspense fallback={<div>Loading...</div>}>
+                    <NavBar
+                      auth={auth ? auth : ""}  // Ensure it's a string, or provide a default value
+                      hasVerifiedEmail={hasVerifiedEmail || false}  // Ensure it's a boolean
+                      currency={currency || "SYP"}  // Ensure it's a string
+                      resetpassstatus={resetpassstatus || ""}  // Ensure it's a string
+                    />
+                      </Suspense>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Images */}
@@ -68,12 +78,12 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
                     setShowGallery(true)
                   }}
                 >
-                  <img
-                    src={`/storage/${image.image_path}`}
-                    alt={`Mercedes-Benz GLS Image ${index + 1}`}
-                    fill
+                    <LazyLoadImage
+                     src={`/storage/${image.image_path}`}
+                     alt={`Car${index + 1}`}
                     className="object-cover h-full w-full"
-                  />
+                    effect="blur"
+                    />
                 </div>
               ))}
             </div>
@@ -85,11 +95,12 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
               <div className="flex items-center gap-2">
                 <div className="relative w-12 h-12 rounded-full overflow-hidden border flex-shrink-0 cursor-pointer"
                  onClick={() => router.visit(route("company.show", car.company.id))}>
-                  <img 
+                   <LazyLoadImage
                     src={`/storage/${car.company.logo_path}`} 
                     alt={`${car.company.company_name} Logo`} 
                     className="object-cover" 
-                  />
+                    effect="blur"
+                    />
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-blue-600">{car.company.company_name}</h2>
@@ -98,7 +109,9 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
               <div className="flex flex-col items-end">
                 <div className="flex items-center">
                   <span className="text-xs font-medium mr-1">Rating:</span>
-                  <RatingStars rating = {car.company.rates} size="sm" interactive={false} />
+                    <Suspense fallback={<div>Loading rating...</div>}>
+                      <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
+                      </Suspense>
                   <span className="ml-1 text-xs text-gray-600">{companyReviewsCount} Review</span>
                 </div>
                 <Button
@@ -120,12 +133,14 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold"> {car.brand} {car.model} {car.year}</h1>
                 <div className="flex items-center">
-                  <RatingStars rating = {car.rates} size="sm" interactive={false} />
+                <Suspense fallback={<div>Loading rating...</div>}>
+                      <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
+                      </Suspense>
                   <span className="ml-2 text-sm text-gray-600">{carReviewsCount} review</span>
                 </div>
               </div>
               <p className="text-lg text-gray-700 mt-1">
-              {car.brand} {car.model}  {car.transmission} / {car.year} / {car.body_type.toUpperCase()}/{carFuel}
+              {car.brand} {car.model}  {car.transmission} / {car.year} / {car.body_type}/{carFuel}
               </p>
             </div>
   

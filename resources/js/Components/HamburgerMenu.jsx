@@ -198,7 +198,7 @@ const HamburgerMenu = ({authuser,status,hasVerifiedEmail,currency}) => {
             </div>
                <div className="absolute bottom-0 w-[350px]">
                <div className="mt-auto p-2">
-                         <Button className="w-full bg-blue-400 hover:bg-blue-500 text-white text-lg py-6"
+                         <Button className="w-full bg-[#9f372e] hover:bg-blue-500 text-white text-lg py-6"
                           onClick={handleSellCarClick}>
                           SELL YOUR CAR
                           </Button>
