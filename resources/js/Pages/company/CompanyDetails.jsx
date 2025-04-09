@@ -1,5 +1,4 @@
-import NavBar from '@/Components/NavBar';
-import RatingStars from '@/Components/RatingStars';
+
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -7,11 +6,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/Components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { UserRatingForm } from '@/Components/UserRatingForm';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Filter, Mail, MapPin, Phone, Star, UserRoundPen, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react'
-
-const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}) => {
+import { Head, Link, usePage } from '@inertiajs/react';
+import { CheckCircle, ChevronDown, Filter, MapPin, Phone, Star, UserRoundPen, X } from 'lucide-react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+   const NavBar = lazy(() => import("@/Components/NavBar"));
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
+import { Inertia } from '@inertiajs/inertia';
+import RatingStars from '@/Components/RatingStars';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip';
+import { Badge } from '@/Components/ui/badge';
+const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
     const [showRatingForm, setShowRatingForm] = useState(false)
     const [selectedSort, setSelectedSort] = useState(sortOption);
     const [showPhoneNumber, setShowPhoneNumber] = useState(false);
@@ -19,7 +33,29 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
      const { currency } = usePage().props;
       const { resetpassstatus } = usePage().props;
      const companyReviewsCount = company.reviews.filter(review => review.comment).length;
-     console.log(company)
+     const currentPage = cars.current_page;
+     const totalPages = cars.last_page;
+
+     const [reviews, setReviews] = useState([])
+     const [currentpage, setCurrentPage] = useState(1)
+     const [hasMore, setHasMore] = useState(true)
+     const [visibleCars, setVisibleCars] = useState(cars.data);
+   const loadReviews = async (page = 1) => {
+     const res = await axios.get(route('company.reviews.paginated', company.id), { params: { page } })
+     const newReviews = res.data.reviews.data
+     if (page === 1) {
+       setReviews(newReviews)
+     } else {
+       setReviews(prev => [...prev, ...newReviews])
+     }
+ 
+     setCurrentPage(page)
+     setHasMore(res.data.reviews.next_page_url !== null)
+   }
+ 
+   useEffect(() => {
+     loadReviews(1)
+   }, []);
     const handleButtonClick = () => {
         setShowPhoneNumber(true);
       };
@@ -29,44 +65,189 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
   }, [sortOption]);
 
   const handleSortChange = (value) => {
+    if (!company?.id) return;
+  
     setSelectedSort(value);
-    router.visit(`/company/${company.id}?sort=${value}`, {
-      replace: true,
-      preserveState: true, 
-      only: ["company", "sortOption"], 
-    });
-  }
+  
+    const sortedCars = [...cars.data];
+  
+    switch (value) {
+      case 'price-high':
+        sortedCars.sort((a, b) => b.price - a.price);
+        break;
+  
+      case 'price-low':
+        sortedCars.sort((a, b) => a.price - b.price);
+        break;
+  
+      case 'rating':
+        sortedCars.sort((a, b) => b.rates - a.rates);
+        break;
+  
+      case 'newest':
+        sortedCars.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
+  
+      case 'featured':
+      default:
+        break; // ما نعمل شي لو "Featured"
+    }
+  
+    setVisibleCars(sortedCars);
+  };
+  
+  
+
+  useEffect(() => {
+    setVisibleCars(cars.data);
+  }, [cars]);
+   const renderPaginationItems = () => {
+      const items = [];
+    
+      // Always show first page
+      items.push(
+        <PaginationItem key="first">
+          <PaginationLink
+            onClick={() => handlePageChange(1)}
+            isActive={currentPage === 1}
+            className="cursor-pointer"
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>,
+      );
+    
+      // Show ellipsis if needed
+      if (currentPage > 3) {
+        items.push(
+          <PaginationItem key="ellipsis-1">
+            <PaginationEllipsis />
+          </PaginationItem>,
+        );
+      }
+    
+      // Show current page and surrounding pages
+      for (
+        let i = Math.max(2, currentPage - 1);
+        i <= Math.min(totalPages - 1, currentPage + 1);
+        i++
+      ) {
+        // Skip first and last (already shown)
+        if (i === 1 || i === totalPages) continue;
+    
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              onClick={() => handlePageChange(i)}
+              isActive={currentPage === i}
+              className="cursor-pointer"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>,
+        );
+      }
+    
+      // Show ellipsis if needed
+      if (currentPage < totalPages - 2) {
+        items.push(
+          <PaginationItem key="ellipsis-2">
+            <PaginationEllipsis />
+          </PaginationItem>,
+        );
+      }
+    
+      // Always show last page if more than 1 page
+      if (totalPages > 1) {
+        items.push(
+          <PaginationItem key="last">
+            <PaginationLink
+              onClick={() => handlePageChange(totalPages)}
+              isActive={currentPage === totalPages}
+              className="cursor-pointer"
+            >
+              {totalPages}
+            </PaginationLink>
+          </PaginationItem>,
+        );
+      }
+    
+      return items;
+    };
+    
+    
+    const handlePageChange = (page) => {
+      Inertia.get(route("company.show", company.id), {
+        page,// يجب استخدام selectedSort وليس sortOption لأنه قد يتغير
+      }, {
+        preserveState: true,
+        preserveScroll: true
+      });
+    };
     return (
       <>
       <Head title={company.company_name} />
         <div className="min-h-screen bg-gray-50">
-        <NavBar auth={auth} hasVerifiedEmail ={hasVerifiedEmail} currency = {currency} resetpassstatus = {resetpassstatus}/>
-      <div className="container mx-auto px-4 py-8">
+       <Suspense fallback={<div>Loading...</div>}>
+                           <NavBar
+                             auth={auth ? auth : ""}  // Ensure it's a string, or provide a default value
+                             hasVerifiedEmail={hasVerifiedEmail || false}  // Ensure it's a boolean
+                             currency={currency || "SYP"}  // Ensure it's a string
+                             resetpassstatus={resetpassstatus || ""}  // Ensure it's a string
+                           />
+                             </Suspense>
+          <div className="container mx-auto px-4 py-8">
         {/* Company Header */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {/* Verification badge behind logo */}
+                {company?.rates >= 4.5 && (
+                <div className="absolute -right-2 -top-2 z-10">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="bg-blue-500 text-white rounded-full p-1 shadow-md">
+                          <CheckCircle className="h-5 w-5" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Verified Dealer</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                )}
               <div className="relative w-20 h-20 rounded-full overflow-hidden border flex-shrink-0">
-                <img
-                  src={`/storage/${company.logo_path}`}
-                  alt={company.name}
-                  fill
+                  <LazyLoadImage
+                 src={`/storage/${company.logo_path}`}
+                 alt={company.name}
                   className="object-cover"
+                  effect="blur" // Optional effect for lazy loading
                 />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold">{company.company_name}</h1>
-                <div className="flex items-center mt-1">
-                  <RatingStars rating={company.rates} />
-                  <span className="ml-2 text-sm text-gray-600">({company.reviews.length} reviews)</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  <span className="font-medium">Established:</span> {new Date(company.created_at).toLocaleDateString()} •
-                  <span className="font-medium ml-2">Owner:</span> {company.user.name}
-                </p>
-              </div>
             </div>
-  
+            <div>
+              <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{company.company_name}</h1>
+              {company?.rates >= 4.5 && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                Verified
+              </Badge>
+              )}
+              </div>
+              <div className="flex items-center mt-1">
+                <RatingStars rating={company.rates} />
+                <span className="ml-2 text-sm text-gray-600">({company.reviews.length} reviews)</span>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">Established:</span> {new Date(company.created_at).toLocaleDateString()} •
+              <span className="font-medium ml-2">Owner:</span> {company.user.name}
+              </p>
+            </div>
+          </div>
+
             <div className="md:ml-auto flex flex-col sm:flex-row gap-3 justify-end">
               <Button variant="outline" className="flex-1 sm:flex-initial" onClick={handleButtonClick}>
                 <Phone className="mr-2 h-4 w-4" />{showPhoneNumber ? (
@@ -111,7 +292,7 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
         </div>
         <Tabs defaultValue="cars" onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="cars">Cars ({company.cars.length})</TabsTrigger>
+          <TabsTrigger value="cars">Cars ({cars.data.length})</TabsTrigger>
           <TabsTrigger value="reviews">Reviews ({companyReviewsCount})</TabsTrigger>
         </TabsList>
         
@@ -142,19 +323,19 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
           </div>
   
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {company.cars.map((car) => (
+            {visibleCars.map((car) => (
               <Link href={`/car/${car.id}`} key={car.id}>
                 <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
                   <div className="relative aspect-[4/3] w-full">
-                    <img src={`/storage/${car.images[0].image_path}`} alt={car.name} fill className="object-cover h-full w-full" />
+                    <img src={`/storage/${car.images[0].image_path}`} alt={car.name}  className="object-cover h-full w-full" />
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white bg-opacity-90 rounded-full px-2 py-1">
                       <div className="relative w-5 h-5 rounded-full overflow-hidden">
-                        <img
-                            src={`/storage/${company.logo_path}`}
-                          alt={company.company_name}
-                          fill
-                          className="object-cover"
-                        />
+                         <LazyLoadImage
+                        src={`/storage/${company.logo_path}`}
+                        alt={company.company_name}
+                        className="object-cover"
+                        effect="blur"
+                      />
                       </div>
                       <span className="text-xs font-medium">{company.company_name}</span>
                     </div>
@@ -168,7 +349,9 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
                     </div>
                     <div className="flex items-center mt-1 justify-between">
                      <div className='flex items-center'>
-                     <RatingStars rating={car.rates} size="sm" />
+                                          
+                           <RatingStars rating={car.rates || ""} size="sm"/>
+                                        
                      <span className="ml-1 text-xs text-gray-500">({car.rates})</span>
                      </div>
                       <div>
@@ -188,16 +371,41 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
               </Link>
             ))}
           </div>
+          {totalPages > 1 && (
+              <div className="flex justify-center mt-8">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+
+                    {renderPaginationItems()}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
         </div>
         </TabsContent>
-         <TabsContent value="reviews" className="mt-0 xs-s-range:text-xs xs-range:text-xs">
+                  <TabsContent value="reviews" className="mt-0 xs-s-range:text-xs xs-range:text-xs">
                       <Card>
                         <CardContent className="pt-6 xs-s-range:text-xs">
                           <div className="flex items-center justify-between mb-6">
                             <div>
                               <h3 className="text-lg font-semibold xs-range:text-xs xs-s-range:text-xs">Customer Reviews</h3>
                               <div className="flex items-center mt-1">
-                                <RatingStars rating={company.rates} />
+                            
+                                      <RatingStars rating={company.rates || ""} size="sm" interactive={false} />
+                                
                                 <span className="ml-2 text-sm font-medium xs-range:text-xs xs-s-range:text-xs">{company.rates} out of 5</span>
                                 <span className="ml-2 text-sm text-gray-500 xs-range:text-xs xs-s-range:text-xs">{companyReviewsCount} Review</span>
                               </div>
@@ -208,41 +416,45 @@ const CompanyDetails = ({auth,company,hasVerifiedEmail,reviewsByUser,sortOption}
                           </div>
         
                           <div className="space-y-6 xs-s-range:text-xs">
-                      {Object.entries(reviewsByUser).map(([userId, userReviews]) => {
-                        // Filter reviews to include only those with a comment
-                        const filteredReviews = userReviews.filter((review) => review.comment && review.comment.trim() !== "");
-        
-                        // Skip rendering if no reviews contain a comment
-                        if (filteredReviews.length === 0) return null;
-                      return (
-                              <div key={userId} className="pb-6">
-                                {filteredReviews.map((review) => (
-                                  <div key={review.id} className="flex items-start gap-4 border-b last:border-0 mb-2">
-                                    <Avatar className="h-10 w-10">
-                                      <AvatarFallback>
-                                        {review.user.name.charAt(0)}
-                                        {review.user.name.split(" ")[1]?.charAt(0)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                        <div>
-                                          <h4 className="font-medium">{review.user.name}</h4>
-                                          <div className="flex items-center mt-1">
-                                            <RatingStars rating={review.rating || 0} size="sm" />
-                                            <span className="ml-2 text-xs text-gray-500">
-                                              {new Date(review.created_at).toLocaleDateString()}
-                                            </span>
+                               <div className="pb-6">
+                                          {reviews.map((review, index) => (
+                                          <div key={`${review.id}-${index}`} className="flex items-start gap-4 border-b last:border-0 mb-2">
+                                            <Avatar className="h-10 w-10">
+                                              <AvatarFallback>
+                                          {review.user.name.charAt(0)}
+                                          {review.user.name.split(" ")[1]?.charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      <div className="flex-1">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                          <div>
+                                            <h4 className="font-medium">{review.user.name}</h4>
+                                            <div className="flex items-center mt-1">
+                                              <RatingStars rating={review.rating || 0} size="sm" />
+                                              <span className="ml-2 text-xs text-gray-500">
+                                                {new Date(review.created_at).toLocaleDateString()}
+                                              </span>
+                                            </div>
                                           </div>
                                         </div>
+                                        <p className="mt-2 text-gray-700 mb-2">{review.comment}</p>
                                       </div>
-                                      <p className="mt-2 text-gray-700 mb-2">{review.comment}</p>
                                     </div>
+                                  ))}
                                   </div>
-                                ))}
-                              </div>
-                            );
-                          })}
+                                  {hasMore && (
+                <div className="flex justify-center py-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadReviews(currentpage + 1)}
+                    className="flex items-center gap-1"
+                  >
+                    Load More
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
                         </div>
                         </CardContent>
                       </Card>

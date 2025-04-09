@@ -14,3 +14,4 @@ Route::get('cars/models', [CarController::class, 'getModels']);
 Route::middleware(['web'])->get('/user/cars/count', [UserController::class, 'getCarCount']);
 
 
+

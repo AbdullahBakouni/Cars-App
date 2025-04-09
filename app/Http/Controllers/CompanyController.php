@@ -38,61 +38,57 @@ class CompanyController extends Controller
      * Display the specified resource.
      */
     public function show(Request $request, $id)
-    {
-        // Retrieve the company with related users and cars
-        $company = Company::with([
-            'user.phones' => function ($query) {
-                $query->select('user_id', 'number'); // You must include foreign key 'user_id'
-            },
-            'reviews.user',
-            'user',
-            'reviews'
-        ]) ->findOrFail($id);
-                         
-        // Sorting logic
-        $sortOption = $request->query('sort', 'featured');
-    
-        $cars = Car::select('id', 'year', 'price', 'rates', 'brand', 'model', 'description', 'mileage', 'currency', 'company_id','created_at')
+{
+    $company = Company::with([
+        'user.phones' => function ($query) {
+            $query->select('user_id', 'number');
+        },
+        'reviews.user',
+        'user',
+        'reviews'
+    ])->findOrFail($id);
+
+    $sortOption = $request->query('sort', 'featured');
+
+    $carsQuery = Car::select('id', 'year', 'price', 'rates', 'brand', 'model', 'description', 'mileage', 'currency', 'company_id', 'created_at')
         ->where('company_id', $company->id)
         ->with([
-            // Get only the first image per car
             'images' => function ($query) {
                 $query->select('id', 'car_id', 'image_path')->limit(1);
             }
         ]);
-        
-        switch ($sortOption) {
-            case 'price-low':
-                $cars->orderBy('price', 'asc');
-                break;
-            case 'price-high':
-                $cars->orderBy('price', 'desc');
-                break;
-            case 'newest':
-                $cars->orderBy('created_at', 'desc');
-                break;
-            case 'rating':
-                $cars->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'desc');
-                break;
-            default:
-                // Default sorting (e.g., featured)
-                $cars->orderBy('created_at', 'desc');
-                break;
-        }
-    
-        $company->setRelation('cars', $cars->get());
-    
-        $reviewsByUser = $company->reviews->groupBy('user_id');
-        $user = Auth::user();
-        return Inertia::render('company/CompanyDetails', [
-            'company' => $company,
-            'reviewsByUser' => $reviewsByUser,
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-            'sortOption' => $sortOption,
-        ]);
+
+    switch ($sortOption) {
+        case 'price-low':
+            $carsQuery->orderBy('price', 'asc');
+            break;
+        case 'price-high':
+            $carsQuery->orderBy('price', 'desc');
+            break;
+        case 'newest':
+            $carsQuery->orderBy('created_at', 'desc');
+            break;
+        case 'rating':
+            $carsQuery->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'desc');
+            break;
+        default:
+            $carsQuery->orderBy('created_at', 'desc');
+            break;
     }
+
+    $paginatedCars = $carsQuery->paginate(2)->withQueryString();
+    $user = Auth::user();
+
+    return Inertia::render('company/CompanyDetails', [
+        'company' => $company,
+        'cars' => $paginatedCars, // Full paginator object
+        'sortOption' => $sortOption,
+        'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+            ? $user->hasVerifiedEmail()
+            : false,
+    ]);
+}
+
     
 
     /**
@@ -117,5 +113,20 @@ class CompanyController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    
+    public function fetchCompanyReviews(Request $request, Company $company)
+    {
+        $reviews = $company->reviews()
+            ->with('user')
+            ->whereNotNull('comment')
+            ->where('comment', '!=', '')
+            ->orderBy('rating', 'desc')
+            ->paginate(10);
+    
+        return response()->json([
+            'reviews' => $reviews,
+        ]);
     }
 }

@@ -93,11 +93,23 @@ useEffect(() => {
   }
 }, [message, message_type]);
   const handleBodyTypeClick = (typeId) => {
-    Inertia.visit(route("cars.byBodyType", { body_type: typeId }));
+    // Inertia.visit(route("cars.byBodyType", { body_type: typeId },
+    //   {currency: currency === null ? 'SYP' : currency}));
+    Inertia.visit(route('cars.byBodyType'), {
+      method: 'get',
+      data: { body_type: typeId , currency: currency === null ? 'SYP' : currency },
+      preserveState: true, // الاحتفاظ بحالة الصفحة
+    });
   };
 
   const handleBrandNameClick = (brandName) => {
-    Inertia.visit(route("cars.byBodyType", { brand_name: brandName }));
+    // Inertia.visit(route("cars.byBodyType", { brand_name: brandName },
+    //   {currency: currency === null ? 'SYP' : currency}));
+    Inertia.visit(route('cars.byBodyType'), {
+      method: 'get',
+      data: { brand_name: brandName , currency: currency === null ? 'SYP' : currency },
+      preserveState: true, // الاحتفاظ بحالة الصفحة
+    });
   };
   const handleSearch = () => {
     if (!maxPrice) return; // لا ترسل الطلب إذا لم يدخل المستخدم سعراً
@@ -109,7 +121,13 @@ useEffect(() => {
   };
 
   const handleCategoryClick = (categoryName) => {
-    Inertia.visit(route('cars.byBodyType', { category: categoryName }));
+    // Inertia.visit(route('cars.byBodyType', { category: categoryName },
+    //   {currency: currency === null ? 'SYP' : currency}));
+    Inertia.visit(route('cars.byBodyType'), {
+      method: 'get',
+      data: { category: categoryName , currency: currency === null ? 'SYP' : currency },
+      preserveState: true, // الاحتفاظ بحالة الصفحة
+    });
   };
   return (
     <>

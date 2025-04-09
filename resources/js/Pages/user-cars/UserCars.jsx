@@ -2,7 +2,7 @@ import { CarCard } from '@/Components/CarCard';
 import { Button } from '@/Components/ui/button';
 import { Inertia } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
-import { Plus , Filter} from "lucide-react";
+import { Plus , Filter, CheckCircle2} from "lucide-react";
 import { useEffect, useState , lazy, Suspense} from 'react';
 const NavBar = lazy(() => import("@/Components/NavBar"));
 import {
@@ -23,6 +23,15 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
   const { currency } = usePage().props;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -31,7 +40,7 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
   const { resetpassstatus } = usePage().props;
 
   const [sortOption, setSortOption] = useState("default");
-
+  const [visibleCars, setVisibleCars] = useState(cars.data);
   // Get pagination and car data from props
   const currentPage = cars.current_page;
   const totalPages = cars.last_page;
@@ -51,20 +60,46 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
 
 
   const handleDelete = (id) => {
-    Inertia.delete(route("cars.destroy", { car: id }));
+    // حذف السيارة عبر Inertia
+    Inertia.delete(route("cars.destroy", { car: id }), {
+      data: {
+        page: 1,  // إضافة المعامل page للحفاظ على نفس الصفحة
+      },
+      preserveState: true,  // الحفاظ على الحالة الحالية
+      preserveScroll: true, // الحفاظ على موضع التمرير
+      onSuccess: () => {
+        // بعد نجاح الحذف، يمكن تعديل القائمة يدويًا إذا كنت تستخدم الفلترة
+        // مثلاً: إذا كنت تستخدم state لسياراتك، يمكنك إزالة السيارة من القائمة
+        setVisibleCars((prevCars) => prevCars.filter(car => car.id !== id));
+      }
+    });
   };
+  
 
   const handleStatusChange = (id, newStatus) => {
+    // أولًا نعدل حالة السيارة على السيرفر
     Inertia.get(route("cars.my"), { 
       car_id: id, 
       status: newStatus, 
       sort: sortOption, 
       page: currentPage 
     }, {
-      preserveState: true,  // Preserve the state (sorting, pagination)
-      preserveScroll: true  // Preserve scroll position
+      preserveState: true,  // حفظ حالة الفرز والتمرير
+      preserveScroll: true  // حفظ التمرير في نفس المكان
+    }).then(() => {
+      // بعد التعديل، نحدث السيارة المعروضة في الواجهة بدون إعادة تحميل كامل
+      setVisibleCars((prevCars) => {
+        return prevCars.map(car => {
+          if (car.id === id) {
+            // تعديل الحالة في السيارة المستهدفة
+            return { ...car, status: newStatus };
+          }
+          return car;
+        });
+      });
     });
   };
+  
   
   const handleSellCarClick = () => {
     if (auth?.user && hasVerifiedEmail) {
@@ -76,11 +111,34 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
 
   const handleSortChange = (option) => {
     setSortOption(option);
-    Inertia.get(route('cars.my'), { sort: option, page: currentPage }, {
-      preserveState: true,  // Preserve the state (sorting, pagination)
-      preserveScroll: true  // Preserve scroll position
-    });
+
+    const sortedCars = [...cars.data]; // انسخ السيارات الحالية
+
+    switch (option) {
+      case 'price-low-to-high':
+        sortedCars.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-high-to-low':
+        sortedCars.sort((a, b) => b.price - a.price);
+        break;
+      case 'rating-high-to-low':
+        sortedCars.sort((a, b) => b.rates - a.rates);
+        break;
+      case 'rating-low-to-high':
+        sortedCars.sort((a, b) => a.rates - b.rates);
+        break;
+      default:
+        break; // ما نعمل شي لو الخيار "default"
+    }
+
+    setVisibleCars(sortedCars); // حدث النتائج المعروضة
   };
+
+  // 🔁 لو تغيرت البيانات من السيرفر (مثلاً عند التنقل بين الصفحات)، نعيد ضبط السيارات المعروضة
+  useEffect(() => {
+    setVisibleCars(cars.data);
+  }, [cars]);
+  
 
 
   const renderPaginationItems = () => {
@@ -160,8 +218,7 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
   
   const handlePageChange = (page) => {
     Inertia.get(route("cars.my"), { 
-      page, 
-      sort: sortOption 
+      page
     }, {
       preserveState: true,  // Preserve the state (sorting, pagination)
       preserveScroll: true  // Preserve scroll position
@@ -189,12 +246,10 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
             <div className="flex justify-between items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Suspense fallback={<div>Loading...</div>}>
               <Button variant="outline" className="gap-2">
                 <Filter className="h-4 w-4" />
                 {sortOption === "default" ? "Sort By" : sortOption}
               </Button>
-            </Suspense>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56">
                   <DropdownMenuLabel>Sort By</DropdownMenuLabel>
@@ -231,7 +286,7 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {cars.data.map((car) => (
+              {visibleCars.map((car) => (
                 <CarCard
                   key={car.id}
                   car={car}
@@ -271,6 +326,23 @@ const UserCars = ({ auth, cars, hasVerifiedEmail}) => {
               </div>
             )}
           </div>
+
+          <AlertDialog open={isDialogOpen && success !== null} onOpenChange={setIsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Status Changed Successfully
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {success}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
         </div>
       </div>
     </>

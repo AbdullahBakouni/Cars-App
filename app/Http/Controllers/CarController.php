@@ -9,30 +9,72 @@ use App\Models\Car;
 use App\Models\CarImage;
 use App\Models\Company;
 use App\Models\Phone;
+use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CarController extends Controller
 {
-    /**
-     * عرض جميع السيارات
-     */
-    public function index()
-    {
-        $cars = Car::with(['user', 'company', 'images'])->paginate(10);
-        return CarResource::collection($cars);
+   
+
+    private function resizeAndCompress($source, $destination, $maxWidth = 1280, $quality = 70, $convertToWebP = true)
+{
+    $info = getimagesize($source);
+    [$width, $height] = $info;
+
+    $mime = $info['mime'];
+
+    switch ($mime) {
+        case 'image/jpeg':
+            $image = imagecreatefromjpeg($source);
+            break;
+        case 'image/png':
+            $image = imagecreatefrompng($source);
+            break;
+        default:
+            return false; // نوع غير مدعوم
     }
 
-    /**
-     * إنشاء سيارة جديدة
-     */
+    // تغيير الأبعاد إذا لزم الأمر
+    if ($width > $maxWidth) {
+        $ratio = $maxWidth / $width;
+        $newWidth = $maxWidth;
+        $newHeight = $height * $ratio;
+
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+    } else {
+        $resized = $image;
+    }
+
+    // تحويل إلى WebP إن أردت
+    if ($convertToWebP) {
+        $destination = preg_replace('/\.\w+$/', '.webp', $destination);
+        imagewebp($resized, $destination, $quality);
+    } else {
+        if ($mime === 'image/jpeg') {
+            imagejpeg($resized, $destination, $quality);
+        } else {
+            $pngQuality = (int) round((100 - $quality) / 10);
+            imagepng($resized, $destination, $pngQuality);
+        }
+    }
+
+    imagedestroy($resized);
+    if ($resized !== $image) imagedestroy($image);
+
+    return $destination; // نرجع المسار الجديد
+}
+
+    
     public function store(CarRequest $request)
     {
         try {
@@ -74,21 +116,72 @@ class CarController extends Controller
             if ($request->hasFile('images')) {
                 $images = [];
                 foreach ($request->file('images') as $image) {
-                    $path = $image->store('car_images', 'public');
-                    $images[] = ['car_id' => $car->id, 'image_path' => $path];
+                    $originalPath = $image->store('temp_images', 'public');
+                    $absolutePath = storage_path('app/public/' . $originalPath);
+            
+                    $newFileName = uniqid() . '.webp';
+                    $compressedPath = 'car_images/' . $newFileName;
+                    $destinationPath = storage_path('app/public/' . $compressedPath);
+            
+                    $this->resizeAndCompress($absolutePath, $destinationPath, 1280, 70, true);
+                    unlink($absolutePath);
+            
+                    $images[] = ['car_id' => $car->id, 'image_path' => $compressedPath];
                 }
-                CarImage::insert($images); // ✅ إدخال دفعة واحدة لتحسين الأداء
+                CarImage::insert($images);
             }
+            
+            
     
             // ✅ إنشاء الشركة إن كانت البيانات متوفرة
             if ($request->filled('company_name') || $request->hasFile('company_logo')) {
-                $logoPath = $request->hasFile('company_logo') ? $request->file('company_logo')->store('logos', 'public') : null;
-                $company = Company::firstOrCreate(
-                    ['user_id' => $user->id, 'company_name' => $request->company_name],
-                    ['logo_path' => $logoPath, 'location' => $request->company_location]
-                );
-                $car->update(['company_id' => $company->id]);
+                $logoPath = null;
+            
+                // ⏳ معالجة الشعار إن وُجد
+                if ($request->hasFile('company_logo')) {
+                    $tempLogoPath = $request->file('company_logo')->store('temp_logos', 'public');
+                    $absoluteLogoPath = storage_path('app/public/' . $tempLogoPath);
+            
+                    $newLogoName = uniqid() . '.webp';
+                    $compressedLogoPath = 'logos/' . $newLogoName;
+                    $destinationLogoPath = storage_path('app/public/' . $compressedLogoPath);
+            
+                    $this->resizeAndCompress($absoluteLogoPath, $destinationLogoPath, 512, 80, true);
+                    unlink($absoluteLogoPath);
+            
+                    $logoPath = $compressedLogoPath;
+                }
+            
+                // 🔍 البحث عن شركة موجودة بنفس الاسم والموقع (بدون حساسية لحالة الأحرف)
+                $existingCompany = Company::where('user_id', $user->id)
+                    ->whereRaw('LOWER(company_name) = ?', [strtolower($request->company_name)])
+                    ->whereRaw('LOWER(location) = ?', [strtolower($request->company_location)])
+                    ->first();
+            
+                if ($existingCompany) {
+                    // ✅ التأكد إن الشعار نفسه أو لا
+                    $isSameLogo = $logoPath === null || $existingCompany->logo_path === $logoPath;
+            
+                    if (!$isSameLogo && $logoPath !== null) {
+                        // 🛠️ تحديث الشعار إذا تغير
+                        $existingCompany->update(['logo_path' => $logoPath]);
+                    }
+            
+                    // ربط السيارة بالشركة الموجودة
+                    $car->update(['company_id' => $existingCompany->id]);
+                } else {
+                    // 🆕 إنشاء شركة جديدة
+                    $company = Company::create([
+                        'user_id' => $user->id,
+                        'company_name' => $request->company_name,
+                        'location' => $request->company_location,
+                        'logo_path' => $logoPath,
+                    ]);
+            
+                    $car->update(['company_id' => $company->id]);
+                }
             }
+            
     
             // ✅ حفظ الوسوم (Tags)
             if ($request->filled('tags')) {
@@ -106,11 +199,6 @@ class CarController extends Controller
         }
     }
     
-    
-    
-    
-
-
     /**
      * عرض سيارة معينة
      */
@@ -122,7 +210,7 @@ class CarController extends Controller
             // 🚀 Optimized eager loading with selected columns only
             $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($id);
             // 💡 Optimized grouping for reviews by user_id
-            $reviewsByUser = $car->reviews->groupBy('user_id');
+
     
             // 💰 Price logic
             $carPrice = $car->price;
@@ -149,7 +237,6 @@ class CarController extends Controller
     
             return Inertia::render('cars_details/Show', [
                 'car' => $car,
-                'reviewsByUser' => $reviewsByUser,
                 'suggestedCars' => $suggestedCars,
                 'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
                     ? $user->hasVerifiedEmail()
@@ -400,166 +487,160 @@ class CarController extends Controller
     }
 
 
-
     public function getCarsByBodyType(Request $request)
-{
-    $user = Auth::user();
-    $bodyTypeId = $request->query('body_type');
-    $brandName = $request->query('brand_name');
-    $modelName = $request->query('model_name');
-    $sortBy = $request->query('sort', 'posted'); // Default sorting by 'posted'
-    $price = $request->query('maxPrice');
-    $currency = $request->query('currency');
-    $categoryName = $request->query('category');
-    $currentPage = $request->query('page', 1); // الفئة المختارة
-
-    // بناء الاستعلام الأساسي مع العلاقات المطلوبة
-    $query = Car::select('id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price','currency','status')
-    ->with(['images' => function ($query) {
-        $query->select('car_id', 'image_path')->limit(1); // Limit to the first image
-    }, 'tags', 'company']);
-
-    switch ($sortBy) {
-        case 'price-low':
-            $query->orderBy('price', 'asc');
-            break;
-        case 'price-high':
-            $query->orderBy('price', 'desc');
-            break;
-        case 'year-new':
-            $query->orderBy('year', 'desc');
-            break;
-        case 'year-old':
-            $query->orderBy('year', 'asc');
-            break;
-        case 'mileage-low':
-            $query->orderBy('mileage', 'asc');
-            break;
-        case 'mileage-high':
-            $query->orderBy('mileage', 'desc');
-            break;
-        default:
-            $query->orderBy('created_at', 'desc');// Default sorting by the latest
-            break;
-    }
-
-    // 🔹 تصفية حسب نوع الجسم
-    if ($bodyTypeId) {
-        $query->where('body_type', $bodyTypeId);
-    }
-
-    // 🔹 تصفية حسب العلامة التجارية والموديل
-    if ($brandName) {
-        $query->where('brand', $brandName);
-    }
-    if ($brandName && $modelName) {
-        $query->where('model', $modelName);
-    }
-
-    // 🔹 تصفية حسب الفئة المختارة
-    if ($categoryName === "Economy") {
-        $query->where(function ($query) {
-            $query->where('currency', 'SYP')
-                  ->where('price', '<=', 50000000);
-        })
-        ->orWhere(function ($query) {
-            $query->where('currency', 'USD')
-                  ->whereBetween('price', [2000, 5000]);
-        });
-    } elseif ($categoryName === "Family") {
-        $query->where('body_type', 'suv')
-              ->whereIn('doors', [4, 5]);
-    } elseif ($categoryName === "Electric") {
-        $query->where('cylinders', 'Electric');
-    } elseif ($categoryName === "Luxury") {
-        $query->where('body_type', 'sedan')
-              ->where(function ($query) {
-                  $query->where('currency', 'SYP')
-                        ->whereBetween('price', [800000000, 1200000000]);
-              })
-              ->orWhere(function ($query) {
-                  $query->where('currency', 'USD')
-                        ->whereBetween('price', [180000, 220000]);
-              });
-    } elseif ($categoryName === "Sport") {
-        $query->where('body_type', 'coupe')
-              ->whereIn('cylinders', [6, 8, 10])
-              ->where(function ($query) {
-                  $query->where('currency', 'SYP')
-                        ->whereBetween('price', [400000000, 600000000]);
-              })
-              ->orWhere(function ($query) {
-                  $query->where('currency', 'USD')
-                        ->whereBetween('price', [490000, 510000]);
-              });
-    } elseif ($categoryName === "SuperCars") {
-        $query->where('body_type', 'coupe')
-              ->whereIn('cylinders', [10, 12, 16])
-              ->where(function ($query) {
-                  $query->where('currency', 'SYP')
-                        ->whereBetween('price', [800000000, 1200000000]);
-              })
-              ->orWhere(function ($query) {
-                  $query->where('currency', 'USD')
-                        ->whereBetween('price', [180000, 220000]);
-              });
-    } elseif ($categoryName === "Adventure") {
-        $query->where('body_type', 'suv')
-              ->whereIn('cylinders', [6, 8])
-              ->where(function ($query) {
-                  $query->where('currency', 'SYP')
-                        ->whereBetween('price', [300000000, 500000000]);
-              })
-              ->orWhere(function ($query) {
-                  $query->where('currency', 'USD')
-                        ->whereBetween('price', [60000, 80000]);
-              });
-    } elseif ($categoryName === "Utility") {
-        $query->where(function ($query) {
-            $query->where('body_type', 'minivan')
-                  ->orWhere('body_type', 'pickup');
-        });
-    }
-
-    // 🔹 تصفية حسب السعر (عند عدم وجود فلتر آخر)
-    if (!$brandName && !$modelName && !$bodyTypeId && $price !== null) {
-        if (!is_numeric($price)) {
-            return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
-        }
-        $price = (float) $price;
-
-        // البحث عن السيارات بناءً على السعر القريب
-        $cars = Car::select('id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price','currency','status')
-        ->whereBetween('price', [$price - 500, $price + 500])
-        ->where('currency', $currency) // Filter by currency
-        ->orderByRaw("ABS(price - ?)", [$price]) // Sort by closest price
-        ->with(['images' => function ($query) {
-            $query->select('car_id', 'image_path')->limit(1); // Limit to the first image only
-        }, 'tags']) // Load images and tags
-        ->paginate(40);
+    {
+        $user = Auth::user();
+        $bodyTypeId = $request->query('body_type');
+        $brandName = $request->query('brand_name');
+        $modelName = $request->query('model_name');
+        $sortBy = $request->query('sort', 'posted');
+        $price = $request->query('maxPrice');
+        $currency = $request->query('currency');
+        $categoryName = $request->query('category');
     
-    } else {
-        // تنفيذ الاستعلام العادي مع التصفية وتطبيق التصفح
-        $cars = $query->paginate(40);
+        // 🧠 الحقول الأساسية المطلوبة
+        $selectFields = ['id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price', 'currency', 'status'];
+    
+        // 🧠 الفئات التي تتطلب cylinders
+        $categoriesRequiringCylinders = ['Elecrtic', 'Sport', 'SuperCars', 'Adventure'];
+        if (in_array($categoryName, $categoriesRequiringCylinders)) {
+            $selectFields[] = 'cylinders';
+        }
+    
+        // 🧱 الاستعلام الأساسي
+        $query = Car::select($selectFields)
+            ->with([
+                'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
+                'tags',
+                'company'
+            ]);
+    
+        // 🎯 ترتيب النتائج
+        match ($sortBy) {
+            'price-low'    => $query->orderBy('price', 'asc'),
+            'price-high'   => $query->orderBy('price', 'desc'),
+            'year-new'     => $query->orderBy('year', 'desc'),
+            'year-old'     => $query->orderBy('year', 'asc'),
+            'mileage-low'  => $query->orderBy('mileage', 'asc'),
+            'mileage-high' => $query->orderBy('mileage', 'desc'),
+            default        => $query->orderBy('created_at', 'desc'),
+        };
+    
+        // 🧩 فلاتر إضافية
+        if ($bodyTypeId) {
+            $query->where('body_type', $bodyTypeId);
+        }
+    
+        if ($brandName) {
+            $query->where('brand', $brandName);
+        }
+    
+        if ($brandName && $modelName) {
+            $query->where('model', $modelName);
+        }
+    
+        if ($request->has('currency') && in_array($currency, ['SYP', 'USD'])) {
+            $query->where('currency', $currency);
+        }
+    
+        // 🎯 فلترة حسب الفئة
+        match ($categoryName) {
+            'Economy' => $query->where(function ($q) {
+                $q->where('currency', 'SYP')->whereBetween('price', [20_000_000, 60_000_000]);
+            })->orWhere(function ($q) {
+                $q->where('currency', 'USD')->whereBetween('price', [2_000, 6_000]);
+            }),
+        
+            'Family' => $query->where('body_type', 'suv')->whereIn('doors', [4, 5]),
+        
+            'Elecrtic' => $query->where(function ($q) {
+                $q->where('cylinders', 'Electric');
+            }),
+        
+            'Luxury' => $query->where('body_type', 'sedan')->where(function ($q) {
+                $q->where(function ($qq) {
+                    $qq->where('currency', 'SYP')->whereBetween('price', [100_000_000, 1_200_000_000]);
+                })->orWhere(function ($qq) {
+                    $qq->where('currency', 'USD')->whereBetween('price', [100_000, 220_000]);
+                });
+            }),
+        
+            'Sport' => $query->where('body_type', 'coupe')->where(function ($q) {
+                $q->whereIn('cylinders', [6, 8, 10])->where(function ($qq) {
+                    $qq->where('currency', 'SYP')->whereBetween('price', [50_000_000, 100_000_000]);
+                })->orWhere(function ($qq) {
+                    $qq->where('currency', 'USD')->whereBetween('price', [50_000, 510_000]);
+                });
+            }),
+        
+            'SuperCars' => $query->where('body_type', 'coupe')->where(function ($q) {
+                $q->whereIn('cylinders', [8, 10, 12, 16])->where(function ($qq) {
+                    $qq->where('currency', 'SYP')->whereBetween('price', [60_000_000, 140_000_000]);
+                })->orWhere(function ($qq) {
+                    $qq->where('currency', 'USD')->whereBetween('price', [60_000, 120_000]);
+                });
+            }),
+        
+            'Adventure' => $query->where('body_type', 'suv')->where(function ($q) {
+                $q->whereIn('cylinders', [6, 8])->where(function ($qq) {
+                    $qq->where('currency', 'SYP')->whereBetween('price', [30_000_000, 60_000_000]);
+                })->orWhere(function ($qq) {
+                    $qq->where('currency', 'USD')->whereBetween('price', [30_000, 60_000]);
+                });
+            }),
+        
+            'Utility' => $query->where(function ($q) {
+                $q->where('body_type', 'minivan')->orWhere('body_type', 'pickup');
+            }),
+        
+            default => null,
+        };
+        
+        // 💰 فلترة بالسعر فقط إذا ما في فلاتر أخرى
+        if (!$brandName && !$modelName && !$bodyTypeId && $price !== null) {
+            if (!is_numeric($price)) {
+                return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
+            }
+    
+            $price = (float) $price;
+    
+            $cars = Car::select($selectFields)
+            ->when($currency === 'SYP', function ($query) use ($price) {
+                // إذا كانت العملة SYP، إضافة أو خصم 10,000,000
+                $query->whereBetween('price', [$price - 10000000, $price + 10000000]);
+            })
+            ->when($currency === 'USD', function ($query) use ($price) {
+                // إذا كانت العملة USD، إضافة أو خصم 1000
+                $query->whereBetween('price', [$price - 1000, $price + 1000]);
+            })
+            ->where('currency', $currency)
+            ->orderByRaw("ABS(price - ?)", [$price])
+            ->with([
+                'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
+                'tags'
+            ])->paginate(40);
+               
+        } else {
+            $cars = $query->paginate(40);
+        }
+    
+        return Inertia::render('cars/CarSearchResults', [
+            'cars' => $cars,
+            'totalResults' => $cars->total(),
+            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+                ? $user->hasVerifiedEmail()
+                : false,
+            'filters' => [
+                'bodyTypeId' => $bodyTypeId,
+                'brandName' => $brandName,
+                'modelName' => $modelName,
+                'sortBy' => $sortBy,
+                'price' => $price,
+                'categoryName' => $categoryName,
+            ],
+        ]);
     }
-
-    // 🔹 إرسال البيانات إلى صفحة واحدة مع الحفاظ على الفلاتر
-    return Inertia::render('cars/CarSearchResults', [
-        'cars' => $cars,
-        'totalResults' => $cars->total(),
-        'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-            ? $user->hasVerifiedEmail()
-            : false,
-        'filters' => [
-            'bodyTypeId' => $bodyTypeId,
-            'brandName' => $brandName,
-            'modelName' => $modelName,
-            'sortBy' => $sortBy,
-            'price' => $price,
-            'categoryName' => $categoryName,
-        ],
-    ]);
-}
+    
 
     
 
@@ -569,10 +650,7 @@ class CarController extends Controller
     
         // Get sort option from the request (default to 'default' if not provided)
         $sortOption = $request->query('sort', 'default');
-    
-        // Get the current page from the request (default to page 1 if not provided)
         $currentPage = $request->input('page', 1);
-    
         // Handle car status update if needed
         if ($request->has('status') && $request->has('car_id')) {
             $request->validate([
@@ -585,12 +663,13 @@ class CarController extends Controller
             $car->save();
     
             // After updating, fetch the cars again with the same sorting
-            $cars = $this->getUserCars($user, $sortOption, $currentPage);
+            $cars = $this->getUserCars($user, $sortOption,$currentPage);
     
+
             // Return the updated cars and other relevant info
             return Inertia::render('user-cars/UserCars', [
                 'cars' => $cars,
-                'success' => "Car status updated",
+                'success' => "Car status has been updated successfully.",
                 'sortOption' => $sortOption,
                 'hasVerifiedEmail' => $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
                     ? $user->hasVerifiedEmail()
@@ -599,7 +678,7 @@ class CarController extends Controller
         }
     
         // Fetch cars with sorting and pagination
-        $cars = $this->getUserCars($user, $sortOption, $currentPage);
+        $cars = $this->getUserCars($user, $sortOption,$currentPage);
     
         // Return the cars with other relevant info
         return Inertia::render('user-cars/UserCars', [
@@ -614,15 +693,37 @@ class CarController extends Controller
     
     
     // 🔁 Shared sorting logic
-    private function getUserCars($user, $sortOption, $currentPage)
+    private function getUserCars($user, $sortOption,$currentPage)
     {
-        $carsQuery = Car::with(['images' => function ($query) {
-            $query->select('car_id', 'image_path')->limit(1);
-        }, 'reviews', 'reviews.user'])
+        $carsQuery = Car::with([
+            'images' => function ($query) {
+                $query->select('car_id', 'image_path')->limit(1);
+            },
+            // Get the highest-rated review for each car
+            'reviews' => function ($query) {
+                $query->with('user') // Fetch user details for the top review
+                      ->orderBy('rating', 'desc') // Sort by rating in descending order
+                      ->limit(1); // Limit to 1 review
+            }
+        ])
         ->where('user_id', $user->id)
-        ->select(['id', 'year', 'price', 'rates', 'brand', 'model', 'currency', 'status','created_at']);
+        ->select([
+            'cars.id',
+            'year',
+            'price',
+            'rates',
+            'brand',
+            'model',
+            'currency',
+            'status',
+            'created_at',
+        ])
+        ->addSelect([
+            // Add review count directly in the query using selectRaw
+            DB::raw('(SELECT COUNT(*) FROM reviews WHERE reviews.car_id = cars.id) as reviews_count')
+        ]);
     
-        // Apply sorting
+        // Apply sorting based on the selected option
         switch ($sortOption) {
             case 'price-low-to-high':
                 $carsQuery->orderBy('price', 'asc');
@@ -631,20 +732,33 @@ class CarController extends Controller
                 $carsQuery->orderBy('price', 'desc');
                 break;
             case 'rating-high-to-low':
-                $carsQuery->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'desc');
+                $carsQuery->orderBy('rates', 'desc');
                 break;
             case 'rating-low-to-high':
-                $carsQuery->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'asc');
+                $carsQuery->withAvg('reviews', 'rating')->orderBy('rates', 'asc');
                 break;
             default:
                 $carsQuery->orderBy('created_at', 'desc');
                 break;
         }
     
-        // Apply pagination
-        return $carsQuery->paginate(20);  // Adjust the number of cars per page if needed
+        return $carsQuery->paginate(20);
     }
     
+
+    public function fetchReviews(Request $request, Car $car)
+    {
+        $reviews = $car->reviews()
+            ->with('user')
+            ->whereNotNull('comment')
+            ->where('comment', '!=', '')
+            ->orderBy('rating', 'desc')
+            ->paginate(10);
+    
+        return response()->json([
+            'reviews' => $reviews,
+        ]);
+    }
     
 }
 

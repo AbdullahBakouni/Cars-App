@@ -35,18 +35,24 @@ return new class extends Migration
             $table->decimal('price', 15, 2);
             $table->timestamps();
 
-           
-        $table->index(['body_type', 'brand', 'model']); // فهرس مركب للتصفية حسب نوع الجسم، الماركة والموديل
-        $table->index(['brand', 'model', 'price']); // فهرس مركب للبحث عن الماركة، الموديل والسعر
-        $table->index(['body_type', 'price', 'currency']); // فهرس مركب للتصفية حسب نوع الجسم، السعر والعملة
-        $table->index(['cylinders', 'price']); // فهرس مركب للتصفية حسب الأسطوانات والسعر
-        $table->index(['doors', 'price']); // فهرس مركب للتصفية حسب الأبواب والسعر
-        $table->index(['engine', 'price']); // فهرس مركب للتصفية حسب المحرك والسعر
+        // فهرس مركب للتصفية حسب المحرك والسعر
         $table->index(['year']); // فهرس على سنة التصنيع لتسريع الفرز
         $table->index(['mileage']); // فهرس على المسافة المقطوعة لتسريع الفرز
         $table->index(['currency', 'price']); // فهرس مركب للعملة والسعر
         $table->index(['status']); // فهرس على الحالة لتسريع الفلترة
-        $table->index(['price']);                // فهرس على حالة السيارة لتسريع البحث عن السيارات المباعة أو المؤجرة
+        $table->index(['price']);
+        $table->index(['body_type']);
+        $table->index(['brand']);
+        $table->index(['currency']);
+        $table->index(['body_type','doors']);
+        $table->index(['body_type','currency','price']);
+        $table->index(['body_type','cylinders','currency','price']);
+        $table->index(['cylinders']);
+        $table->index(['created_at']);
+        $table->index(['rates']);
+        $table->index(['brand','model']);
+        $table->index(['body_type','brand','model']);
+                        // فهرس على حالة السيارة لتسريع البحث عن السيارات المباعة أو المؤجرة
         });
     }
 

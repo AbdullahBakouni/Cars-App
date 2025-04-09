@@ -54,15 +54,10 @@ Route::resource("company",CompanyController::class);
 
 Route::get('/cars/search', [CarController::class, 'getCarsByBodyType'])->name('cars.byBodyType');
 
-Route::get('/cars/byPrice', [CarController::class, 'searchByPrice'])->name('cars.byPrice');
-
-Route::get('/cars/filter', [CarController::class, 'filter'])->name('cars.filter');
-
-
 Route::get('/set-currency', function (Request $request) {
     session(['currency' => $request->currency]);
     return redirect()->back(); // Reload the page with the updated currency
-})->name('setCurrency');
+    })->name('setCurrency');
 
 Route::middleware(CustomAuthenticate::class)->get('/my-cars', [CarController::class, 'myCars'])->name('cars.my');
 
@@ -87,5 +82,12 @@ Route::middleware(CustomAuthenticate::class)->post('/store-phone-session', funct
     }
 
     return back()->with(['error' => 'No phone found for this user']);
-})->name('store_user_phone');;
+})->name('store_user_phone');
+
+Route::get('/cars/{car}/reviews', [CarController::class, 'fetchReviews'])->name('cars.reviews.paginated');
+Route::get('/copmany/{company}/reviews', [CompanyController::class, 'fetchCompanyReviews'])->name('company.reviews.paginated');
+
+
+
+
 require __DIR__.'/auth.php';

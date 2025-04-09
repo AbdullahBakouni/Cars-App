@@ -1,6 +1,6 @@
 
 
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense,useState } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -20,17 +20,13 @@ import {
   MoreVertical,
   Tag,
   Calendar,
-  ChevronRight,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { Link } from "@inertiajs/react"
-// import RatingStars from "./RatingStars"
+import RatingStars from "./RatingStars"
 import { LazyLoadImage } from "react-lazy-load-image-component"
 import 'react-lazy-load-image-component/src/effects/blur.css';
-const RatingStars = lazy(() => import("./RatingStars"));
+import ReviewsDialog from "./ReviewsDialog"
 export function CarCard({ car, onDelete, onStatusChange}) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isMarkAsSoldDialogOpen, setIsMarkAsSoldDialogOpen] = useState(false)
@@ -67,7 +63,9 @@ export function CarCard({ car, onDelete, onStatusChange}) {
       setStatusToChangeTo(null)
     }
   }
-  // Get the most recent review
+
+  
+
   const latestReview =
     car.reviews.length > 0
       ? [...car.reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
@@ -77,11 +75,11 @@ export function CarCard({ car, onDelete, onStatusChange}) {
     <>
       <Card className="overflow-hidden">
       <Link href={`/car/${car.id}`} key={car.id}>
-        <div className="relative aspect-[4/3]">
+        <div className="relative aspect-square rounded-lg overflow-hidden">
           <LazyLoadImage
-              src={`${firstImage}`}
+              src={`storage/${firstImage}`}
               alt={`${car.year} ${car.brand} ${car.model}`}
-              className="object-cover h-full w-full"
+              className="object-cover h-full w-full aspect-square"
               effect="blur" // Optional effect for lazy loading
             />
                <Badge className={`absolute top-2 right-2 xs-range:text-xs xs-s-range:text-xs ${getStatusColor(car.status)}`}>
@@ -114,12 +112,10 @@ export function CarCard({ car, onDelete, onStatusChange}) {
           <div className="mt-3">
             <div className="flex items-center">
               <div className="flex mr-2">
-              <Suspense fallback={<div>Loading rating...</div>}>
             <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
-          </Suspense>
                 </div>
               <span className="text-sm font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
-                {car.rates} ({car.reviews.length} {car.reviews.length === 1 ? "review" : "reviews"})
+                {car.rates}  {car.reviews_count} {car.reviews_count === 1 ? 'review' : 'reviews'}
               </span>
             </div>
           </div>
@@ -134,48 +130,7 @@ export function CarCard({ car, onDelete, onStatusChange}) {
               <p className="text-sm mt-1 line-clamp-2  xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">{latestReview.comment}</p>
 
               {/* View all reviews button */}
-              {car.reviews.some(review => review.comment && review.comment.trim() !== "") && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="link" size="sm" className="mt-1 h-auto p-0  xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
-                      View all reviews
-                      <ChevronRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md xs-range:max-w-xs xs-s-range:max-w-xs">
-                    <DialogHeader>
-                      <DialogTitle>
-                        Reviews for {car.brand} {car.model}
-                      </DialogTitle>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[60vh]">
-                    <div className="space-y-4 p-1">
-                    {car.reviews
-                        .filter((review) => review.comment && review.comment.trim() !== "") // Filter reviews with a comment
-                        .map((review) => (
-                        <div key={review.id} className="space-y-2">
-                            <div className="flex justify-between items-start">
-                            <div>
-                                <p className="font-medium">{review.user.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                {new Date(review.created_at).toLocaleDateString()}
-                                </p>
-                            </div>
-                            <div className="flex">  
-                              <Suspense fallback={<div>Loading rating...</div>}>
-                                  <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
-                            </Suspense>
-                            </div>
-                            </div>
-                            <p>{review.comment}</p>
-                            <Separator />
-                        </div>
-                        ))}
-                    </div>
-                    </ScrollArea>
-                  </DialogContent>
-                </Dialog>
-              )}
+              <ReviewsDialog car={car} />
             </div>
           )}
 
@@ -258,11 +213,6 @@ export function CarCard({ car, onDelete, onStatusChange}) {
           </DropdownMenu>
         </CardFooter>
       </Card>
-
-             
-
-
-      
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

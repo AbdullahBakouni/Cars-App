@@ -1,7 +1,6 @@
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { useState } from "react"
-import { X, ChevronLeft, ChevronRight, MessageCircle, Phone, Eye} from "lucide-react"
-
+import { X, ChevronLeft, ChevronRight, MessageCircle, Phone, Eye, ChevronDown} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -12,7 +11,9 @@ import { Head, router, usePage } from '@inertiajs/react'
 import { Avatar, AvatarFallback} from '@/Components/ui/avatar'
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
-const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
+import axios from 'axios'
+import RatingStars from '@/Components/RatingStars'
+const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
     const [showGallery, setShowGallery] = useState(false)
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showRatingForm, setShowRatingForm] = useState(false)
@@ -24,8 +25,27 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
     const companyReviewsCount = car.company?.reviews?.filter(review => review.comment)?.length || 0;
     const carFuel = car.fuel ? car.fuel.toUpperCase() : 'ELECTRIC';
     const NavBar = lazy(() => import("@/Components/NavBar"));
-    const RatingStars = lazy(() => import("@/Components/RatingStars"));
-    
+    const [reviews, setReviews] = useState([])
+    const [currentPage, setCurrentPage] = useState(1)
+    const [hasMore, setHasMore] = useState(true)
+
+  const loadReviews = async (page = 1) => {
+    const res = await axios.get(route('cars.reviews.paginated', car.id), { params: { page } })
+    const newReviews = res.data.reviews.data;
+    if (page === 1) {
+      setReviews(newReviews)
+    } else {
+      setReviews(prev => [...prev, ...newReviews])
+    }
+
+    setCurrentPage(page)
+    setHasMore(res.data.reviews.next_page_url !== null)
+  }
+
+  useEffect(() => {
+    loadReviews(1)
+  }, []);
+
     const handleButtonClick = () => {
       setShowPhoneNumber(true);
     };
@@ -69,7 +89,7 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
           <div className="lg:col-span-2">
             {/* Images Grid */}
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {car.images.slice(0, 8).map((image, index) => (
+              {car.images.map((image, index) => (
                 <div
                   key={index}
                   className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
@@ -81,7 +101,7 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
                     <LazyLoadImage
                      src={`/storage/${image.image_path}`}
                      alt={`Car${index + 1}`}
-                    className="object-cover h-full w-full"
+                    className="object-cover h-full w-full aspect-square"
                     effect="blur"
                     />
                 </div>
@@ -109,9 +129,9 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
               <div className="flex flex-col items-end">
                 <div className="flex items-center">
                   <span className="text-xs font-medium mr-1">Rating:</span>
-                    <Suspense fallback={<div>Loading rating...</div>}>
+                   
                       <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
-                      </Suspense>
+                   
                   <span className="ml-1 text-xs text-gray-600">{companyReviewsCount} Review</span>
                 </div>
                 <Button
@@ -133,9 +153,9 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold"> {car.brand} {car.model} {car.year}</h1>
                 <div className="flex items-center">
-                <Suspense fallback={<div>Loading rating...</div>}>
+               
                       <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
-                      </Suspense>
+                     
                   <span className="ml-2 text-sm text-gray-600">{carReviewsCount} review</span>
                 </div>
               </div>
@@ -149,7 +169,7 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
               <TabsList className="grid grid-cols-3 mb-4">
                 <TabsTrigger value="description">Description</TabsTrigger>
                 <TabsTrigger value="specifications">Specifications</TabsTrigger>
-                <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                <TabsTrigger value="reviews">Reviews ({carReviewsCount})</TabsTrigger>
               </TabsList>
               <TabsContent value="description" className="mt-0 xs-s-range:text-xs xs-range:text-xs">
                 <Card>
@@ -243,42 +263,46 @@ const Show = ({auth,car,reviewsByUser,suggestedCars,hasVerifiedEmail}) => {
                   </div>
 
                   <div className="space-y-6 xs-s-range:text-xs">
-              {Object.entries(reviewsByUser).map(([userId, userReviews]) => {
-                // Filter reviews to include only those with a comment
-                const filteredReviews = userReviews.filter((review) => review.comment && review.comment.trim() !== "");
-
-                // Skip rendering if no reviews contain a comment
-                if (filteredReviews.length === 0) return null;
-              return (
-                      <div key={userId} className="pb-6">
-                        {filteredReviews.map((review) => (
-                          <div key={review.id} className="flex items-start gap-4 border-b last:border-0 mb-2">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback>
-                                {review.user.name.charAt(0)}
-                                {review.user.name.split(" ")[1]?.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                  <h4 className="font-medium">{review.user.name}</h4>
-                                  <div className="flex items-center mt-1">
-                                    <RatingStars rating={review.rating || 0} size="sm" />
-                                    <span className="ml-2 text-xs text-gray-500">
-                                      {new Date(review.created_at).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <p className="mt-2 text-gray-700 mb-2">{review.comment}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="pb-6">
+            {reviews.map((review, index) => (
+            <div key={`${review.id}-${index}`} className="flex items-start gap-4 border-b last:border-0 mb-2">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback>
+            {review.user.name.charAt(0)}
+            {review.user.name.split(" ")[1]?.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+        <div className="flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 className="font-medium">{review.user.name}</h4>
+              <div className="flex items-center mt-1">
+                <RatingStars rating={review.rating || 0} size="sm" />
+                <span className="ml-2 text-xs text-gray-500">
+                  {new Date(review.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-gray-700 mb-2">{review.comment}</p>
+        </div>
+      </div>
+    ))}
+    </div>
+    {hasMore && (
+      <div className="flex justify-center py-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => loadReviews(currentPage + 1)}
+          className="flex items-center gap-1"
+        >
+          Load More
+          <ChevronDown className="h-3 w-3" />
+        </Button>
+      </div>
+    )}
+  </div>
                 </CardContent>
               </Card>
             </TabsContent>

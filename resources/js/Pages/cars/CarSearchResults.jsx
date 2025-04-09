@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy, useRef } from "react";
 import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn, Star} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,9 +29,29 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
    const sortoption = queryParams.get("sort");
    const [pendingSortOption, setPendingSortOption] = useState(sortoption || "posted");
    const { currency } = usePage().props;
+   const prevCurrency = useRef(currency)
   const { resetpassstatus } = usePage().props;
   const currentPage = cars.current_page;
   const totalPages = cars.last_page;
+  useEffect(() => {
+    // لو تغيّرت العملة فعلاً
+    if (prevCurrency.current !== currency) {
+      prevCurrency.current = currency; // حدّث العملة القديمة
+      Inertia.visit(route('cars.byBodyType', { 
+        body_type: queryParams.get("body_type"),
+        brand_name: queryParams.get("brand_name"),
+        model_name: queryParams.get("model_name"),
+        maxPrice: queryParams.get("maxPrice"),
+        category: queryParams.get("category"),
+        currency: currency,
+        sort: pendingSortOption,
+        page: currentPage,
+      }), {
+        preserveState: true,
+        preserveScroll: true
+      });
+    }
+  }, [currency]);
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 400) {
@@ -44,6 +64,7 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+  
   const applySorting = () => {
     setSortDialogOpen(false);
     // Reset page to 1 when sorting is changed
@@ -163,7 +184,8 @@ const getSortLabel = (value) => {
   const handlePageChange = (page) => {
     Inertia.get(route("cars.byBodyType"), { 
         page, 
-        sort: pendingSortOption, // Ensure the sort option is passed
+        sort: pendingSortOption,
+        currency: currency, // Ensure the sort option is passed
         preserveState: true,  
         preserveScroll: true  
     });
@@ -194,23 +216,30 @@ const getSortLabel = (value) => {
     // Display the list of cars if available
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       {cars.data.map((car) => (
-        <Card key={car.id} className="overflow-hidden hover:shadow-md transition-shadow">
-          <div className="relative aspect-[4/3] bg-gray-100">
-            {car.images && car.images.length > 0 && (
-             <LazyLoadImage
-              src={`/${car.images[0].image_path}`}
+        <Card key={car.id} className="overflow-hidden hover:shadow-lg transition-shadow h-full">
+        <div className="relative w-full aspect-square bg-gray-100 overflow-hidden rounded-md">
+          {/* Image as background layer */}
+          {car.images && car.images.length > 0 && (
+            <LazyLoadImage
+              src={`/storage/${car.images[0].image_path}`}
               alt={`${car.year} ${car.brand} ${car.model}`}
-              className="object-cover h-full w-full"
+              className="w-full h-full object-cover aspect-square"
               effect="blur"
-              />
-            )}
-             <button className="absolute top-2 right-2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center xs-range:w-5 xs-range:h-5"
-            onClick={() => {
-              router.visit(route("car.show", { car: car.id }));
-            }}>
-                <Eye className="w-4 h-4 text-gray-500" />
-                </button>
+            />
+          )}
+      
+          {/* Button on top */}
+          <div className="absolute top-2 right-2 z-10">
+            <button
+              className="w-8 h-8 bg-white/80 rounded-full flex items-center justify-center xs-range:w-5 xs-range:h-5"
+              onClick={() => {
+                router.visit(route("car.show", { car: car.id }));
+              }}
+            >
+              <Eye className="w-4 h-4 text-gray-500" />
+            </button>
           </div>
+        </div>
           <CardContent className="p-3">
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-medium text-lg xs-range:text-sm xs-s-range:text-[9px] xs-s-range:leading-[8px]">

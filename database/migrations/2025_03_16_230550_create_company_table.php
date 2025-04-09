@@ -19,10 +19,7 @@ return new class extends Migration
             $table->decimal('rates', 3, 2)->default(0);
             $table->string('location')->nullable();
             $table->timestamps();
-
-            $table->index(['user_id', 'rating']);
-            $table->index('user_id');          // البحث عن الشركات الخاصة بمستخدم معين 
-            $table->index('rates');          // البحث عن الشركات الخاصة بمستخدم معين 
+         // البحث عن الشركات الخاصة بمستخدم معين 
         });
     }
 
