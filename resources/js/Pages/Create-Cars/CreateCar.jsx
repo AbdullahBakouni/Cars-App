@@ -38,9 +38,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
 import carData from "../cars";
 import { Dialog, DialogContent } from "@/Components/ui/dialog";
+import { Inertia } from "@inertiajs/inertia";
 
 
 
@@ -75,7 +76,14 @@ const colorOptions = [
   { value: "beige", label: "Beige", hex: "#F5F5DCC" },
 ]
 
-export default function CreateCar({auth,hasVerifiedEmail}) {
+export default function CreateCar({ auth, hasVerifiedEmail })
+ {
+
+  const{company_logo} = usePage().props;
+  const{company_name} = usePage().props;
+  const{company_location} = usePage().props;
+  const{company_id} = usePage().props;
+  const isCompanyDataAvailable = company_name && company_location;
   const { data, setData, post,errors,processing } = useForm({
     title:'',
     description: '',
@@ -85,9 +93,10 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
     location:  '',
     price: '',
     phone: '',
-    company_name: '',
-    company_location: '',
-    company_logo:  null,
+    company_name: company_name || '',
+    company_location: company_location || '',
+    company_logo: company_logo || null,
+    company_id: company_id || null,
     body_type: '',
     mileage: '',
     currency: '',
@@ -101,6 +110,13 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
     images:[],
     tags: [],
 });
+ useEffect(() => {
+    if (!isCompanyDataAvailable) return;
+
+    if (!companyLogoUrl) {
+      setCompanyLogoUrl(company_logo ? `/storage/${company_logo}` : null);
+  }
+}, [isCompanyDataAvailable]);
     const [images, setImages] = useState([]);
     const [imageUrls, setImageUrls] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
@@ -116,18 +132,53 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
     const companyLogoInputRef = useRef(null);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const isElectric = data.cylinders === "Electric";
- 
+  useEffect(() => {
+    // تحقق من وجود معلومات الشركة
+    if (company_id && company_name && company_logo && company_location) {
+      // يتم إلغاء حفظ البيانات عند التصفح عبر "التاريخ" أو العودة للوراء
+      const handleBeforeUnload = () => {
+        // إرسال طلب لحذف البيانات من الجلسة
+        Inertia.post(route('clearCompanySession'));
+      };
 
-  const submit = (e) => {
-    e.preventDefault();
-    console.log(data);
-    if(auth.user && hasVerifiedEmail){
-      post(route("car.store"));
+      // تفعيل المستمع لحدث مغادرة الصفحة أو العودة
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      // تنظيف المستمع عند مغادرة الصفحة
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
     }
-     else{
-      setLoginDialogOpen(true)
-     }
+
+    // إذا كانت بيانات الشركة غير موجودة، لا تنفذ أي شيء
+  }, [company_id, company_name, company_logo, company_location]); 
+  
+  const handleLogoClick = () => {
+    if (company_id && company_name && company_logo && company_location) {
+    Inertia.post(route('clearCompanySession'));
+    
+    Inertia.get('/');
+    }
+    else{
+      Inertia.get('/');
+    }
   };
+useEffect(() => {
+  if (company_id) {
+    setData('company_id', company_id);
+    setData('company_logo', null);
+  }
+}, [company_id]);
+
+const submit = (e) => {
+  e.preventDefault();
+
+  // إذا مافي شركة، احذف قيمة company_logo باستخدام setData
+
+  post(route("car.store"));
+};
+
+
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -286,6 +337,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
       setSelectedBodyType(value);  // Update local state for body type
       setData('body_type', value); // Update form data
     };
+
     const handleMileageChange = (e) => {
       // Get the value from input field
       let value = e.target.value;
@@ -325,7 +377,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
       <div className="max-w-4xl mx-auto p-4 space-y-8 xs-range:p-2 xs-range:space-y-0 xs-range:max-w-[400px] xs-range:h-full overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col items-center justify-center space-y-2 mb-8 xs-range:mb-4">
         <div className="flex justify-center mb-4 xs-range:mb-2">
-            <div className="logo-container">
+        <div className="logo-container cursor-pointer" onClick={handleLogoClick}>
               <span className="text-3xl font-bold">
                 <span className="text-blue-600">m</span>oto<span className="text-blue-600">.</span>com
               </span>
@@ -539,14 +591,19 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
                 Company Logo
               </Label>
               <div
-                className={cn(
-                  "w-24 h-24 mx-auto md:mx-0 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden xs-range:w-14 xs-range:h-12",
-                  companyLogoUrl ? "border-0" : "border-muted-foreground/30",
-                )}
-                onDragOver={handleCompanyLogoDragOver}
-                onDrop={handleCompanyLogoDrop}
-                onClick={() => companyLogoInputRef.current?.click()}
-              >
+            className={cn(
+              "w-24 h-24 mx-auto md:mx-0 rounded-full border-2 border-dashed flex items-center justify-center transition-colors overflow-hidden xs-range:w-14 xs-range:h-12",
+              companyLogoUrl ? "border-0" : "border-muted-foreground/30",
+              isCompanyDataAvailable && "opacity-50 cursor-not-allowed"
+            )}
+            onDragOver={handleCompanyLogoDragOver}
+            onDrop={handleCompanyLogoDrop}
+            onClick={() => {
+              if (!isCompanyDataAvailable) {
+                companyLogoInputRef.current?.click();
+              }
+            }}
+          >
                 {companyLogoUrl ? (
                   <div className="relative w-full h-full group">
                     <img
@@ -556,15 +613,17 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
                       className="object-cover"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
-                      <button
-                        className="hidden group-hover:flex bg-destructive text-destructive-foreground rounded-full p-1"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          removeCompanyLogo()
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                    {!isCompanyDataAvailable && (
+                        <button
+                          className="hidden group-hover:flex bg-destructive text-destructive-foreground rounded-full p-1"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeCompanyLogo()
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -591,6 +650,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
               <Input id="company-name" placeholder="Your company name (if applicable)"
               value = {data.company_name}
               onChange={(e) => setData("company_name", e.target.value)} 
+              disabled={isCompanyDataAvailable} 
               />
                {errors.company_name && <p className="text-red-500 text-sm mt-1">{errors.company_name}</p>}
             </div>
@@ -603,6 +663,7 @@ export default function CreateCar({auth,hasVerifiedEmail}) {
               <Input id="company-location" placeholder="Your company Location (if applicable)"
               value = {data.company_location}
               onChange={(e) => setData("company_location", e.target.value)} 
+              disabled={isCompanyDataAvailable} 
               />
                {errors.company_location && <p className="text-red-500 text-sm mt-1">{errors.company_location}</p>}
             </div>

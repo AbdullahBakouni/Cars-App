@@ -3,23 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CarRequest;
-use App\Http\Requests\UpdateCarRequest;
-use App\Http\Resources\CarResource;
 use App\Models\Car;
 use App\Models\CarImage;
 use App\Models\Company;
-use App\Models\Phone;
-use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use Inertia\Response;
+
 
 class CarController extends Controller
 {
@@ -132,9 +127,10 @@ class CarController extends Controller
             }
             
             
-    
-            // ✅ إنشاء الشركة إن كانت البيانات متوفرة
-            if ($request->filled('company_name') || $request->hasFile('company_logo')) {
+            if ($request->filled('company_id')) {
+                $car->update(['company_id' => $request->company_id]);
+            }
+            elseif ($request->filled('company_name') || $request->hasFile('company_logo')) {
                 $logoPath = null;
             
                 // ⏳ معالجة الشعار إن وُجد
@@ -191,8 +187,9 @@ class CarController extends Controller
             }
     
             DB::commit(); // ✅ تنفيذ جميع العمليات
-    
-            return redirect()->route('car.show', $car->id)->with("success", "Car created successfully.");
+            session()->forget(['company_id', 'company_name', 'company_logo', 'company_location']);
+            return redirect()->route('cars.show');
+
         } catch (\Exception $e) {
             DB::rollBack(); // ❌ إلغاء العمليات في حال حدوث خطأ
             return response()->json(['error' => 'Something went wrong: ' . $e->getMessage()], 500);
@@ -206,7 +203,9 @@ class CarController extends Controller
     {
         try {
             $user = Auth::user();
-    
+
+            // session(['car_id' => $car]);
+
             // 🚀 Optimized eager loading with selected columns only
             $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($id);
             // 💡 Optimized grouping for reviews by user_id
@@ -437,7 +436,7 @@ class CarController extends Controller
     /**
      * حذف سيارة
      */
-    public function destroy(Car $car)
+    public function destroy(Request $request, Car $car)
     {
         // Ensure images relationship is loaded
         $car->load('images');
@@ -458,10 +457,12 @@ class CarController extends Controller
     
         // Delete the car record
             $car->delete();
-    
+
+            $page = $request->input('page', 1);
+
             session()->flash("success","Car was deleted successfully");
         // Redirect with success message, updated cars, and email verification status
-            return redirect()->route('cars.my'); 
+        return redirect()->route('cars.my', ['page' => $page]);
             
     }
     
@@ -641,50 +642,46 @@ class CarController extends Controller
         ]);
     }
     
+    public function updateStatus(Request $request)
+    {
+        $request->validate([
+            'car_id' => 'required|exists:cars,id',
+            'status' => 'required|string|in:sell,rent,rented,sold',
+            'page' => 'nullable|integer',
+            'company_id' => 'nullable|integer|exists:company,id',
+        ]);
 
+        $user = Auth::user();
+        $car = Car::where('user_id', $user->id)->findOrFail($request->car_id);
+        $car->status = $request->status;
+        $car->save();
+        session()->flash('selectedCompanyId', $request->input('company_id'));
+
+        session()->flash("success","Car was Updated successfully");
+
+        // 🔁 بعد التحديث، redirect لنفس الصفحة مع flash message
+        return redirect()->route('cars.my', [
+            'page' => $request->input('page', 1),
+        ]);
+    }
     
+
 
     public function myCars(Request $request)
     {
+        
         $user = Auth::user();
     
         // Get sort option from the request (default to 'default' if not provided)
-        $sortOption = $request->query('sort', 'default');
         $currentPage = $request->input('page', 1);
-        // Handle car status update if needed
-        if ($request->has('status') && $request->has('car_id')) {
-            $request->validate([
-                'status' => 'required|string|in:sell,rent,rented,sold',
-            ]);
-    
-            // Find the car and update the status
-            $car = Car::where('user_id', $user->id)->findOrFail($request->car_id);
-            $car->status = $request->status;
-            $car->save();
-    
-            // After updating, fetch the cars again with the same sorting
-            $cars = $this->getUserCars($user, $sortOption,$currentPage);
-    
-
-            // Return the updated cars and other relevant info
-            return Inertia::render('user-cars/UserCars', [
-                'cars' => $cars,
-                'success' => "Car status has been updated successfully.",
-                'sortOption' => $sortOption,
-                'hasVerifiedEmail' => $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                    ? $user->hasVerifiedEmail()
-                    : false,
-            ]);
-        }
-    
-        // Fetch cars with sorting and pagination
-        $cars = $this->getUserCars($user, $sortOption,$currentPage);
+      $companyId = $request->input('company_id', session('selectedCompanyId'));
+        $cars = $this->getUserCars($user,$currentPage,$companyId);
     
         // Return the cars with other relevant info
         return Inertia::render('user-cars/UserCars', [
             'cars' => $cars,
             'success' => session('success'),
-            'sortOption' => $sortOption,
+            'selectedCompanyId' => $companyId,
             'hasVerifiedEmail' => $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
                 ? $user->hasVerifiedEmail()
                 : false,
@@ -693,7 +690,7 @@ class CarController extends Controller
     
     
     // 🔁 Shared sorting logic
-    private function getUserCars($user, $sortOption,$currentPage)
+    private function getUserCars($user,$currentPage,$companyId)
     {
         $carsQuery = Car::with([
             'images' => function ($query) {
@@ -704,11 +701,15 @@ class CarController extends Controller
                 $query->with('user') // Fetch user details for the top review
                       ->orderBy('rating', 'desc') // Sort by rating in descending order
                       ->limit(1); // Limit to 1 review
-            }
+            },
+            'company' => function ($query) {
+                $query->select('id', 'company_name', 'logo_path');
+            },
         ])
         ->where('user_id', $user->id)
         ->select([
             'cars.id',
+            'company_id',
             'year',
             'price',
             'rates',
@@ -721,28 +722,15 @@ class CarController extends Controller
         ->addSelect([
             // Add review count directly in the query using selectRaw
             DB::raw('(SELECT COUNT(*) FROM reviews WHERE reviews.car_id = cars.id) as reviews_count')
-        ]);
-    
-        // Apply sorting based on the selected option
-        switch ($sortOption) {
-            case 'price-low-to-high':
-                $carsQuery->orderBy('price', 'asc');
-                break;
-            case 'price-high-to-low':
-                $carsQuery->orderBy('price', 'desc');
-                break;
-            case 'rating-high-to-low':
-                $carsQuery->orderBy('rates', 'desc');
-                break;
-            case 'rating-low-to-high':
-                $carsQuery->withAvg('reviews', 'rating')->orderBy('rates', 'asc');
-                break;
-            default:
-                $carsQuery->orderBy('created_at', 'desc');
-                break;
+        ])->orderBy('created_at', 'desc');
+
+        if ($companyId) {
+
+            $carsQuery->where('company_id',$companyId);
         }
-    
-        return $carsQuery->paginate(20);
+
+        return $carsQuery->paginate(20, ['*'], 'page', $currentPage);
+
     }
     
 

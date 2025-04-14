@@ -418,7 +418,7 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
                           <div className="space-y-6 xs-s-range:text-xs">
                                <div className="pb-6">
                                           {reviews.map((review, index) => (
-                                          <div key={`${review.id}-${index}`} className="flex items-start gap-4 border-b last:border-0 mb-2">
+                                    <div key={`${review.id}-${index}`} className="flex items-start gap-4 border-b last:border-0 mb-2">
                                             <Avatar className="h-10 w-10">
                                               <AvatarFallback>
                                           {review.user.name.charAt(0)}

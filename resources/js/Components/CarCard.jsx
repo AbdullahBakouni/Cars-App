@@ -1,6 +1,6 @@
 
 
-import { lazy, Suspense,useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -22,12 +22,12 @@ import {
   Calendar,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Link } from "@inertiajs/react"
+import { Link, router } from "@inertiajs/react"
 import RatingStars from "./RatingStars"
 import { LazyLoadImage } from "react-lazy-load-image-component"
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import ReviewsDialog from "./ReviewsDialog"
-export function CarCard({ car, onDelete, onStatusChange}) {
+export function CarCard({ car,onStatusChange,currentPage}) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isMarkAsSoldDialogOpen, setIsMarkAsSoldDialogOpen] = useState(false)
   const [statusToChangeTo, setStatusToChangeTo] = useState(null)
@@ -47,6 +47,16 @@ export function CarCard({ car, onDelete, onStatusChange}) {
   }
 
   
+    const handleDelete = (car) => {
+      // حذف السيارة عبر Inertia
+      router.delete(route("car.destroy", car.id ), {
+           data: {
+             page: currentPage,  // للحفاظ على الصفحة الحالية
+           },
+           preserveState: true,
+           preserveScroll: true,
+         });
+    };
   const handleStatusChangeClick = (status) => {
     if (status === "sold") {
       setStatusToChangeTo("sold")
@@ -66,15 +76,24 @@ export function CarCard({ car, onDelete, onStatusChange}) {
 
   
 
-  const latestReview =
-    car.reviews.length > 0
-      ? [...car.reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-      : null
+  const reviews = car.reviews || [];
+
+  const latestReview = reviews
+    .slice()
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .find((review) => review.comment && review.comment.trim() !== '');
+  
+
+
       const firstImage = car.images.length > 0 ? car.images[0].image_path : 'default-image-path.jpg'; // Use a default image if no images exist.
   return (
     <>
       <Card className="overflow-hidden">
-      <Link href={`/car/${car.id}`} key={car.id}>
+        <div className="cursor-pointer" onClick={() => {
+    // نقوم بإرسال المستخدم إلى صفحة تفاصيل السيارة بدون ظهور id في الـ URL
+              router.visit(route("car.show"));
+          }}
+            >
         <div className="relative aspect-square rounded-lg overflow-hidden">
           <LazyLoadImage
               src={`storage/${firstImage}`}
@@ -85,8 +104,19 @@ export function CarCard({ car, onDelete, onStatusChange}) {
                <Badge className={`absolute top-2 right-2 xs-range:text-xs xs-s-range:text-xs ${getStatusColor(car.status)}`}>
                   {car.status === "rented" || car.status === "sold" ? car.status.charAt(0).toUpperCase() + car.status.slice(1) : `For ${car.status.charAt(0).toUpperCase() + car.status.slice(1)}`}
                 </Badge>
+                  <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white bg-opacity-90 rounded-full px-2 py-1">
+                    <div className="relative w-5 h-5 rounded-full overflow-hidden xs-range:w-3 xs-range:h-3 xs-s-range:w-3 xs-s-range:h-3">
+                    <LazyLoadImage
+                      src={`/storage/${car.company.logo_path}`}
+                      alt={car.company.company_name}
+                      className="object-cover"
+                      effect="blur"
+                      />
+                    </div>
+                  <span className="text-xs font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">{car.company.company_name}</span>
+                   </div>
             </div>
-            </Link>
+            </div>
 
         <CardContent className="p-4 xs">
           <div className="flex justify-between items-start">
@@ -110,36 +140,51 @@ export function CarCard({ car, onDelete, onStatusChange}) {
 
           {/* Rating section */}
           <div className="mt-3">
-            <div className="flex items-center">
-              <div className="flex mr-2">
+            <div className="flex items-center justify-between">
+              <div className="flex mr-2 items-center gap-1">
             <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
+            <span className="text-sm font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+                {car.rates}
+              </span>
                 </div>
               <span className="text-sm font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
-                {car.rates}  {car.reviews_count} {car.reviews_count === 1 ? 'review' : 'reviews'}
+                  {car.reviews_count} {car.reviews_count === 1 ? 'review' : 'reviews'}
               </span>
             </div>
           </div>
 
           {/* Latest review preview */}
-          {latestReview && (
-            <div className="mt-3 p-3 bg-muted rounded-md xs-range:rounded-sm">
-              <div className="flex justify-between items-start">
-                <p className="text-sm font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">{latestReview.user.name}</p>
-                <div className="flex  xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]"><RatingStars rating={latestReview.rating} size="sm" interactive={false}/></div>
-              </div>
-              <p className="text-sm mt-1 line-clamp-2  xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">{latestReview.comment}</p>
+          {latestReview ? (
+  <div className="mt-3 p-3 bg-muted rounded-md xs-range:rounded-sm">
+    <div className="flex justify-between items-start">
+      <p className="text-sm font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+        {latestReview.user.name}
+      </p>
+      <div className="flex xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+        <RatingStars rating={latestReview.rating} size="sm" interactive={false} />
+      </div>
+    </div>
+    <p className="text-sm mt-1 line-clamp-2 xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+      {latestReview.comment}
+    </p>
 
-              {/* View all reviews button */}
-              <ReviewsDialog car={car} />
-            </div>
-          )}
+    <ReviewsDialog car={car} />
+  </div>
+        ) : reviews.length > 0 ? (
+          <div className="mt-3 p-3 bg-muted rounded-md">
+            <p className="text-sm text-muted-foreground text-center xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+              No reviews with comment yet
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 p-3 bg-muted rounded-md">
+            <p className="text-sm text-muted-foreground text-center xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+              No reviews yet
+            </p>
+          </div>
+        )}
 
-          {/* No reviews message */}
-          {car.reviews.length === 0 && (
-            <div className="mt-3 p-3 bg-muted rounded-md">
-              <p className="text-sm text-muted-foreground text-center xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">No reviews yet</p>
-            </div>
-          )}
+          
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between">
           <Button variant="outline" size="sm" asChild className = " xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
@@ -224,7 +269,7 @@ export function CarCard({ car, onDelete, onStatusChange}) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => onDelete(car.id)}
+              onClick={() => handleDelete(car)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

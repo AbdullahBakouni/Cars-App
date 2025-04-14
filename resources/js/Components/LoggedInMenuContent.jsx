@@ -5,9 +5,9 @@ import {
     Car,
     UserCircle2,
     Languages,
-    Phone,
     ArrowLeft,
     CircleDollarSign,
+    Building2,
 } from "lucide-react"
 import { Head, router } from '@inertiajs/react';
 import Profile from './Profile';
@@ -27,6 +27,7 @@ export default function LoggedInMenuContent({currency}) {
           Inertia.visit(route('createcar'));
       };
       const [carCount, setCarCount] = useState(null); // Add loading state to track the request
+      const [companyCount, setCompanyCount] = useState(null); // Add loading state to track the request
     
       useEffect(() => {
         // Fetch car count only once when the component mounts
@@ -45,6 +46,22 @@ export default function LoggedInMenuContent({currency}) {
         fetchCarCount(); // Call the function to fetch car count
       }, []);// Empty dependency array to run once on mount
     
+      useEffect(() => {
+        // Fetch car count only once when the component mounts
+        const fetchCompanyCount = async () => {
+          try {
+            // Make the request to the API without Authorization header (since session is used)
+            const response = await axios.get('/api/user/company/count', {
+              withCredentials: true, // Send cookies with the request
+            });
+            setCompanyCount(response.data.company_count); // Store the car count in state
+          } catch (error) {
+            console.error('Error fetching car count:', error);
+          }
+        };
+    
+        fetchCompanyCount(); // Call the function to fetch car count
+      }, []);
     const renderContent = () => {
         switch (activeComponent) {
             case 'profile':
@@ -82,12 +99,16 @@ export default function LoggedInMenuContent({currency}) {
                           }}
                         >
                             <Car className="mr-4 h-5 w-5" />
-                            My Cars <span className="ml-2 text-blue-500">[{carCount}]</span>
+                            My Cars <span className="ml-2 text-blue-500 font-semibold">[{carCount}]</span>
                         </Button>
 
-                        <Button variant="ghost" className="w-full justify-start text-base font-normal">
-                            <Phone className="mr-4 h-5 w-5" />
-                            Called
+                        <Button variant="ghost" className="w-full justify-start text-base font-normal"
+                         onClick={() => {
+                          router.visit(route("company.my")); // Navigate to My Cars page
+                        }}
+                        >
+                        <Building2 className="mr-4 h-5 w-5" />
+                            My Company  <span className="ml-2 text-blue-500 font-semibold">[{companyCount}]</span>
                         </Button>
 
                         <div className="space-y-2">

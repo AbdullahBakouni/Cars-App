@@ -126,7 +126,7 @@ export default function Update({auth,car,hasVerifiedEmail}) {
     const companyLogoInputRef = useRef(null);
     const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const isElectric = data.cylinders === "Electric";
-  console.log(car);
+  
   useEffect(() => {
     if (!car) return;
 

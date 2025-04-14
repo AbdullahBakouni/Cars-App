@@ -4,6 +4,7 @@ use App\Http\Controllers\CarController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\UserController;
 use App\Http\Middleware\CustomAuthenticate;
 use App\Models\User;
 use Illuminate\Foundation\Application;
@@ -37,14 +38,52 @@ Route::middleware(['web'])->get('/', function () {
     ]);
 })->name('home');
 
+Route::post('/setCompanySession', function () {
+    $companyId = request()->input('company_id');
+    $companyName = request()->input('company_name');
+    $companyLogo = request()->input('company_logo');
+    $companyLocation = request()->input('company_location');
+    
+    // تخزين البيانات في الجلسة
+    session([
+        'company_id' => $companyId,
+        'company_name' => $companyName,
+        'company_logo' => $companyLogo,
+        'company_location' => $companyLocation,
+    ]);
+
+    // بعد تخزين البيانات في الجلسة، التوجيه إلى صفحة إنشاء السيارة
+    return redirect()->route('createcar');
+})->name('setCompanySession');
+
 Route::middleware(CustomAuthenticate::class)->get('/createcar', function () {
     $user = Auth::user();
-    return Inertia::render('Create-Cars/CreateCar',[
+
+    $companyId = session('company_id');
+    $companyName = session('company_name');
+    $companyLogo = session('company_logo');
+    $companyLocation = session('company_location');
+
+    return Inertia::render('Create-Cars/CreateCar', [
         'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-        ? $user->hasVerifiedEmail()
-        : false,
+            ? $user->hasVerifiedEmail()
+            : false,
+        'company_id' => $companyId,
+        'company_name' => $companyName,
+        'company_logo' => $companyLogo,
+        'company_location' => $companyLocation,
     ]);
 })->name('createcar');
+
+
+Route::post('/clearCompanySession', function () {
+    session()->forget(['company_id', 'company_name', 'company_logo', 'company_location']);
+    // return response()->json(['message' => 'Data cleared successfully']);
+})->name('clearCompanySession');
+
+// Route لتخزين بيانات الشركة في الجلسة
+
+
 
 Route::resource("car",CarController::class);
 
@@ -59,11 +98,16 @@ Route::get('/set-currency', function (Request $request) {
     return redirect()->back(); // Reload the page with the updated currency
     })->name('setCurrency');
 
-Route::middleware(CustomAuthenticate::class)->get('/my-cars', [CarController::class, 'myCars'])->name('cars.my');
+    Route::middleware(CustomAuthenticate::class)
+    ->match(['get', 'post'], '/my-cars', [CarController::class, 'myCars'])
+    ->name('cars.my');
 
-Route::middleware(CustomAuthenticate::class)->delete('/cars/{car}', [CarController::class, 'destroy'])->name('cars.destroy');
+Route::middleware(CustomAuthenticate::class)->get('/my-company', [CompanyController::class, 'myCompany'])->name('company.my');
 
-Route::middleware(CustomAuthenticate::class)->put('/cars/{car}/status', [CarController::class, 'updateStatus'])->name('cars.updateStatus');
+Route::get('/car/{car}', [CarController::class, 'show'])->name('cars.show');
+
+
+Route::middleware(CustomAuthenticate::class)->delete('/cars/{car}', [CarController::class, 'destroy']);
 
 Route::middleware(CustomAuthenticate::class)->get('/cars/edit/{id}', [CarController::class, 'edit'])->name('cars.edit');
 
@@ -85,9 +129,17 @@ Route::middleware(CustomAuthenticate::class)->post('/store-phone-session', funct
 })->name('store_user_phone');
 
 Route::get('/cars/{car}/reviews', [CarController::class, 'fetchReviews'])->name('cars.reviews.paginated');
+
 Route::get('/copmany/{company}/reviews', [CompanyController::class, 'fetchCompanyReviews'])->name('company.reviews.paginated');
 
+Route::get('/copmany/{company}/cars', [CompanyController::class, 'fetchCompanyCars'])->name('company.cars.paginated');
 
+
+Route::get('/user/companies', [UserController::class, 'fetchUserCompany'])->name('user.company.paginated');
+
+Route::middleware(CustomAuthenticate::class)->put('/company/{company}', [CompanyController::class, 'update'])->name('company.update');
+
+Route::post('/cars/my/status-update', [CarController::class, 'updateStatus'])->name('cars.updateStatus');
 
 
 require __DIR__.'/auth.php';

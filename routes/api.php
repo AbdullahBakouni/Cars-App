@@ -12,6 +12,7 @@ Route::get('/user', function (Request $request) {
 Route::get('cars/models', [CarController::class, 'getModels']);
 
 Route::middleware(['web'])->get('/user/cars/count', [UserController::class, 'getCarCount']);
+Route::middleware(['web'])->get('/user/company/count', [UserController::class, 'getCompanyCount']);
 
 
 
