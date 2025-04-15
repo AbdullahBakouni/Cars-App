@@ -626,7 +626,7 @@ class CarController extends Controller
             ])->paginate(40);
                
         } else {
-            $cars = $query->paginate(40);
+            $cars = $query->paginate(10);
         }
     
         return Inertia::render('cars/CarSearchResults', [
