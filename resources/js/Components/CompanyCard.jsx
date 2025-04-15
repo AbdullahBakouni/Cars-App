@@ -40,6 +40,16 @@ const CompanyCard = ({company,currentPage}) => {
   const [cars, setCars] = useState([])
   const [reviews, setReviews] = useState([])
 
+  const handleCardClick = (carId) => {
+    axios.post('/cars/session', { car_id: carId })
+        .then(response => {
+            const redirectUrl = response.data.redirect;
+            router.visit(redirectUrl);
+        })
+        .catch(error => {
+            console.error('Failed to set car session:', error);
+        });
+};  
    const loadReviews = async (page = 1) => {
      const res = await axios.get(route('company.reviews.paginated', company.id), { params: { page } })
      const newReviews = res.data.reviews.data
@@ -351,7 +361,7 @@ const CompanyCard = ({company,currentPage}) => {
                                     key={car.id}
                                     className="flex items-center gap-3 border rounded-md p-2 hover:bg-muted/50 transition-colors"
                                   >
-                                    <Link href={`/car/${car.id}`} key={car.id}>
+                                      <div className="cursor-pointer"  onClick={() => handleCardClick(car.id)}>
                                     <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
                                         <LazyLoadImage
                                         src={`storage/${car.images[0].image_path}`}
@@ -360,7 +370,8 @@ const CompanyCard = ({company,currentPage}) => {
                                         effect="blur" // Optional effect for lazy loading
                                         />
                                     </div>
-                                    </Link>
+                                    </div>
+                                    
                                     <div className="flex-grow min-w-0">
                                       <div className="flex justify-between items-start">
                                         <h4 className="font-medium text-sm truncate">{car.model}</h4>

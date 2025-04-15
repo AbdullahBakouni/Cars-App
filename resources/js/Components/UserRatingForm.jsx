@@ -8,55 +8,70 @@ import { router, useForm } from "@inertiajs/react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { LogIn, SmilePlus } from "lucide-react";
 
-export function UserRatingForm({ auth, onClose, CarBrand, CarModel, CarId, CompanyId, CompanyName }) {
+export function UserRatingForm({
+  auth,
+  onClose,
+  CarBrand,
+  CarModel,
+  CarId,
+  CompanyId,
+  CompanyName,
+  reloadReviews
+}) {
   const [thanksDialogOpen, setThanksDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  // Determine which tab should be shown by default
+
   const defaultTab = CarId ? "car" : "dealer";
   const [activeTab, setActiveTab] = useState(defaultTab);
 
-  // Use Inertia's useForm to manage form data
   const { data, setData, post, processing, reset } = useForm({
-    car_id: CarId || null,
-    company_id: CompanyId || null,
     rating: 0,
     comment: "",
+    car_id: null,
+    company_id: null,
   });
-
   useEffect(() => {
-    setActiveTab(defaultTab);
+    if (CarId && (!CompanyId || defaultTab === "car")) {
+      setData((prev) => ({ ...prev, car_id: CarId, company_id: null }));
+    } else if (CompanyId) {
+      setData((prev) => ({ ...prev, company_id: CompanyId, car_id: null }));
+    }
   }, [CarId, CompanyId]);
-
+  
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!auth.user) {
-      setLoginDialogOpen(true)
+      setLoginDialogOpen(true);
+      return;
     }
-    else{
+
     post(route("reviews.store"), {
       onSuccess: () => {
         setThanksDialogOpen(true);
-        reset();
+        reset(); // يرجع كل شي للقيم المبدئية
+        reloadReviews?.(1);
         setTimeout(() => {
           onClose();
         }, 3000);
       },
     });
   }
-  };
-
   return (
     <>
       <form onSubmit={handleSubmit} className="p-4">
-        <Tabs defaultValue={defaultTab} onValueChange={(tab) => {
-          setActiveTab(tab);
-          setData({
-            car_id: tab === "car" ? CarId : null,
-            company_id: tab === "dealer" ? CompanyId : null,
-            rating: 0, // Reset rating when switching tabs
-            comment: "",
-          });
-        }}>
+        <Tabs
+          defaultValue={defaultTab}
+          onValueChange={(tab) => {
+            setActiveTab(tab);
+            setData((prev) => ({
+              ...prev,
+              car_id: tab === "car" ? CarId : null,
+              company_id: tab === "dealer" ? CompanyId : null,
+              rating: 0,
+              comment: "",
+            }));
+            }}      
+        >
           <TabsList className="grid grid-cols-2 mb-4">
             {CarId && <TabsTrigger value="car">Rate Car</TabsTrigger>}
             {CompanyId && <TabsTrigger value="dealer">Rate Company</TabsTrigger>}
@@ -65,17 +80,19 @@ export function UserRatingForm({ auth, onClose, CarBrand, CarModel, CarId, Compa
           {CarId && (
             <TabsContent value="car" className="space-y-4">
               <div className="text-center">
-                <p className="mb-2 font-medium">How would you rate this {CarBrand} {CarModel}?</p>
+                <p className="mb-2 font-medium">
+                  How would you rate this {CarBrand} {CarModel}?
+                </p>
                 <div className="flex justify-center mb-2">
-                  <RatingStars rating={data.rating} size="lg" interactive onRatingChange={(value) => setData("rating", value)} />
+                  <RatingStars
+                    rating={data.rating}
+                    size="lg"
+                    interactive
+                    onRatingChange={(value) => setData("rating", value)}
+                  />
                 </div>
                 <p className="text-sm text-gray-500">
-                  {data.rating === 0 ? "Click to rate"
-                    : data.rating === 1 ? "Poor"
-                    : data.rating === 2 ? "Fair"
-                    : data.rating === 3 ? "Good"
-                    : data.rating === 4 ? "Very Good"
-                    : "Excellent"}
+                  {["Click to rate", "Poor", "Fair", "Good", "Very Good", "Excellent"][data.rating]}
                 </p>
               </div>
             </TabsContent>
@@ -86,15 +103,15 @@ export function UserRatingForm({ auth, onClose, CarBrand, CarModel, CarId, Compa
               <div className="text-center">
                 <p className="mb-2 font-medium">How would you rate {CompanyName}?</p>
                 <div className="flex justify-center mb-2">
-                  <RatingStars rating={data.rating} size="lg" interactive onRatingChange={(value) => setData("rating", value)} />
+                  <RatingStars
+                    rating={data.rating}
+                    size="lg"
+                    interactive
+                    onRatingChange={(value) => setData("rating", value)}
+                  />
                 </div>
                 <p className="text-sm text-gray-500">
-                  {data.rating === 0 ? "Click to rate"
-                    : data.rating === 1 ? "Poor"
-                    : data.rating === 2 ? "Fair"
-                    : data.rating === 3 ? "Good"
-                    : data.rating === 4 ? "Very Good"
-                    : "Excellent"}
+                  {["Click to rate", "Poor", "Fair", "Good", "Very Good", "Excellent"][data.rating]}
                 </p>
               </div>
             </TabsContent>
@@ -135,7 +152,7 @@ export function UserRatingForm({ auth, onClose, CarBrand, CarModel, CarId, Compa
           </div>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-6">
@@ -143,11 +160,12 @@ export function UserRatingForm({ auth, onClose, CarBrand, CarModel, CarId, Compa
               <LogIn className="h-6 w-6 text-blue-500" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
-            <p className="text-center text-gray-500 mb-6">You need to login to Rate cars.</p>
-            <p className="text-center text-gray-500 mb-6">Pleace Click on Menu Button</p>
+            <p className="text-center text-gray-500 mb-6">You need to login to rate cars or companies.</p>
+            <p className="text-center text-gray-500 mb-6">Please click the menu to login.</p>
           </div>
         </DialogContent>
       </Dialog>
     </>
   );
 }
+

@@ -37,6 +37,9 @@ class ReviewController extends Controller
             'rating' => 'required|numeric|min:1|max:5',  // Ensure the rating is between 1 and 5
             'comment' => 'nullable|string|max:1000',
         ]);
+        if (($validated['car_id'] && $validated['company_id']) || (!$validated['car_id'] && !$validated['company_id'])) {
+            return redirect()->back()->withErrors(['rating_target' => 'You must rate either a car or a company, not both.']);
+        }
         $user = Auth::user(); 
         // Create the review record
         $review = Review::create([
@@ -59,7 +62,7 @@ class ReviewController extends Controller
         }
 
         // Redirect or return a response after review submission
-        return redirect()->back()->with('message', 'Thank you for your review!');
+        return redirect()->back();
     
     }
 

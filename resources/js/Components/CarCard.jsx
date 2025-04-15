@@ -22,15 +22,27 @@ import {
   Calendar,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Link, router } from "@inertiajs/react"
+import { router } from "@inertiajs/react"
 import RatingStars from "./RatingStars"
 import { LazyLoadImage } from "react-lazy-load-image-component"
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import ReviewsDialog from "./ReviewsDialog"
+import axios from "axios"
 export function CarCard({ car,onStatusChange,currentPage}) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isMarkAsSoldDialogOpen, setIsMarkAsSoldDialogOpen] = useState(false)
   const [statusToChangeTo, setStatusToChangeTo] = useState(null)
+
+  const handleCardClick = (carId) => {
+    axios.post('/cars/session', { car_id: carId })
+        .then(response => {
+            const redirectUrl = response.data.redirect;
+            router.visit(redirectUrl);
+        })
+        .catch(error => {
+            console.error('Failed to set car session:', error);
+        });
+};
   const getStatusColor = (status) => {
     switch (status) {
       case "sale":
@@ -48,14 +60,20 @@ export function CarCard({ car,onStatusChange,currentPage}) {
 
   
     const handleDelete = (car) => {
-      // حذف السيارة عبر Inertia
-      router.delete(route("car.destroy", car.id ), {
-           data: {
-             page: currentPage,  // للحفاظ على الصفحة الحالية
-           },
-           preserveState: true,
-           preserveScroll: true,
-         });
+      axios.post('/cars/session', { car_id: car.id })
+      .then(() => {
+          // بعدها احذف السيارة
+          router.delete(route("cars.destroy"), {
+              data: {
+                  page: currentPage,  // للحفاظ على الصفحة الحالية
+              },
+              preserveState: true,
+              preserveScroll: true,
+          });
+      })
+      .catch((error) => {
+          console.error("فشل في تخزين car_id في الجلسة:", error);
+      });
     };
   const handleStatusChangeClick = (status) => {
     if (status === "sold") {
@@ -74,7 +92,15 @@ export function CarCard({ car,onStatusChange,currentPage}) {
     }
   }
 
-  
+  const handleEdit = (carId) => {
+    axios.post('/cars/session', { car_id: carId })
+        .then(() => {
+            router.visit(route("cars.edit"));
+        })
+        .catch((error) => {
+            console.error("Failed to set car_id in session:", error);
+        });
+};
 
   const reviews = car.reviews || [];
 
@@ -89,10 +115,7 @@ export function CarCard({ car,onStatusChange,currentPage}) {
   return (
     <>
       <Card className="overflow-hidden">
-        <div className="cursor-pointer" onClick={() => {
-    // نقوم بإرسال المستخدم إلى صفحة تفاصيل السيارة بدون ظهور id في الـ URL
-              router.visit(route("car.show"));
-          }}
+        <div className="cursor-pointer"  onClick={() => handleCardClick(car.id)}
             >
         <div className="relative aspect-square rounded-lg overflow-hidden">
           <LazyLoadImage
@@ -104,6 +127,7 @@ export function CarCard({ car,onStatusChange,currentPage}) {
                <Badge className={`absolute top-2 right-2 xs-range:text-xs xs-s-range:text-xs ${getStatusColor(car.status)}`}>
                   {car.status === "rented" || car.status === "sold" ? car.status.charAt(0).toUpperCase() + car.status.slice(1) : `For ${car.status.charAt(0).toUpperCase() + car.status.slice(1)}`}
                 </Badge>
+                  {car.company.company_name && (
                   <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white bg-opacity-90 rounded-full px-2 py-1">
                     <div className="relative w-5 h-5 rounded-full overflow-hidden xs-range:w-3 xs-range:h-3 xs-s-range:w-3 xs-s-range:h-3">
                     <LazyLoadImage
@@ -115,6 +139,7 @@ export function CarCard({ car,onStatusChange,currentPage}) {
                     </div>
                   <span className="text-xs font-medium xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">{car.company.company_name}</span>
                    </div>
+                  )}
             </div>
             </div>
 
@@ -187,11 +212,11 @@ export function CarCard({ car,onStatusChange,currentPage}) {
           
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between">
-          <Button variant="outline" size="sm" asChild className = " xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
-          <Link href={`/car/${car.id}/edit`}>
+          <Button variant="outline" size="sm"  className = " xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]"
+          onClick={() => handleEdit(car.id)}
+          >
               <Edit className="h-4 w-4 mr-2" />
               Edit
-            </Link>
           </Button>
 
           <DropdownMenu>

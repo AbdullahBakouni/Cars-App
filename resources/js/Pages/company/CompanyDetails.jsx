@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/Components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { UserRatingForm } from '@/Components/UserRatingForm';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { CheckCircle, ChevronDown, Filter, MapPin, Phone, Star, UserRoundPen, X } from 'lucide-react';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import {
@@ -25,9 +25,9 @@ import { Inertia } from '@inertiajs/inertia';
 import RatingStars from '@/Components/RatingStars';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip';
 import { Badge } from '@/Components/ui/badge';
-const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
+const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
     const [showRatingForm, setShowRatingForm] = useState(false)
-    const [selectedSort, setSelectedSort] = useState(sortOption);
+    const [selectedSort, setSelectedSort] = useState("featured");
     const [showPhoneNumber, setShowPhoneNumber] = useState(false);
     const [activeTab, setActiveTab] = useState("cars")
      const { currency } = usePage().props;
@@ -35,12 +35,22 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
      const companyReviewsCount = company.reviews.filter(review => review.comment).length;
      const currentPage = cars.current_page;
      const totalPages = cars.last_page;
-
      const [reviews, setReviews] = useState([])
      const [currentpage, setCurrentPage] = useState(1)
      const [hasMore, setHasMore] = useState(true)
      const [visibleCars, setVisibleCars] = useState(cars.data);
-   const loadReviews = async (page = 1) => {
+   
+     const handleCardClick = (carId) => {
+      axios.post('/cars/session', { car_id: carId })
+          .then(response => {
+              const redirectUrl = response.data.redirect;
+              router.visit(redirectUrl);
+          })
+          .catch(error => {
+              console.error('Failed to set car session:', error);
+          });
+  };
+   const loadCompanyReviews = async (page = 1) => {
      const res = await axios.get(route('company.reviews.paginated', company.id), { params: { page } })
      const newReviews = res.data.reviews.data
      if (page === 1) {
@@ -54,21 +64,22 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
    }
  
    useEffect(() => {
-     loadReviews(1)
+     loadCompanyReviews(1)
    }, []);
+
+   
+
     const handleButtonClick = () => {
         setShowPhoneNumber(true);
       };
       
-  useEffect(() => {
-    setSelectedSort(sortOption); // Ensure state updates when navigating
-  }, [sortOption]);
+ 
 
   const handleSortChange = (value) => {
     if (!company?.id) return;
   
     setSelectedSort(value);
-  
+   
     const sortedCars = [...cars.data];
   
     switch (value) {
@@ -85,11 +96,11 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
         break;
   
       case 'newest':
-        sortedCars.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        sortedCars.sort((a, b) => new Date(b.year) - new Date(a.year));
         break;
   
       case 'featured':
-      default:
+        sortedCars.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         break; // ما نعمل شي لو "Featured"
     }
   
@@ -324,7 +335,7 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
   
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {visibleCars.map((car) => (
-              <Link href={`/car/${car.id}`} key={car.id}>
+              <div className="cursor-pointer"  onClick={() => handleCardClick(car.id)} key={car.id} >
                 <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
                   <div className="relative aspect-[4/3] w-full">
                     <img src={`/storage/${car.images[0].image_path}`} alt={car.name}  className="object-cover h-full w-full" />
@@ -368,7 +379,7 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
+              </div>
             ))}
           </div>
           {totalPages > 1 && (
@@ -473,7 +484,8 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail,sortOption}) => {
               <UserRatingForm onClose={() => setShowRatingForm(false)}
               auth={auth}
               CompanyId = {company.id} 
-              CompanyName = {company.company_name} />
+              CompanyName = {company.company_name} 
+              reloadReviews={loadCompanyReviews}/>
             </div>
           </div>
         )}

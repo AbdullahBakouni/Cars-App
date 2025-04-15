@@ -42,8 +42,8 @@ import { Head, useForm, usePage } from "@inertiajs/react";
 import carData from "../cars";
 import { Dialog, DialogContent } from "@/Components/ui/dialog";
 import { Inertia } from "@inertiajs/inertia";
-
-
+import { LazyLoadImage } from "react-lazy-load-image-component"
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
 const bodyTypes = [
   { value: "coupe", label: "Coupe", icon: Coupe },
@@ -74,6 +74,7 @@ const colorOptions = [
   { value: "orange", label: "Orange", hex: "#FFA500" },
   { value: "purple", label: "Purple", hex: "#800080" },
   { value: "beige", label: "Beige", hex: "#F5F5DCC" },
+  { value: "other", label: "Other", hex: "#9f372e" },
 ]
 
 export default function CreateCar({ auth, hasVerifiedEmail })
@@ -101,6 +102,8 @@ export default function CreateCar({ auth, hasVerifiedEmail })
     mileage: '',
     currency: '',
     status: '',
+    rental_type:'',
+    condition:'',
     doors: '',
     cylinders:  '',
     engine: '',
@@ -172,10 +175,12 @@ useEffect(() => {
 
 const submit = (e) => {
   e.preventDefault();
-
-  // إذا مافي شركة، احذف قيمة company_logo باستخدام setData
-
+  if (auth.user && hasVerifiedEmail) {
   post(route("car.store"));
+  }
+  else{
+    setLoginDialogOpen(true);
+  }
 };
 
 
@@ -329,6 +334,13 @@ const submit = (e) => {
       setData('status', value);
     }
 
+    const handleRentalTypechange = (value) => {
+      setData("rental_type", value);
+    }
+
+    const handleConditionchange = (value) => {
+      setData("condition", value);  
+    }
     const handleColorChange = (colorValue) => {
       setSelectedColor(colorValue); // Update the selected color
       setData("color", colorValue);   // Update form data
@@ -417,13 +429,14 @@ const submit = (e) => {
                 {imageUrls.map((url, index) => (
                 <div key={index} className="relative group">
                   <div className="aspect-square rounded-md overflow-hidden border">
-                    <img
-                      src={url || "/placeholder.svg"}
-                      alt={`Car image ${index + 1}`}
-                      width={200}
-                      height={200}
-                      className="object-cover w-full h-full"
-                    />
+                       <LazyLoadImage
+                        src={url || "/placeholder.svg"}
+                        alt={`Car image ${index + 1}`}
+                        width={200}
+                        height={200}
+                        className="object-cover h-full w-full"
+                        effect="blur" // Optional effect for lazy loading
+                        />
                   </div>
                   <button
                     className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -454,6 +467,78 @@ const submit = (e) => {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="currency">Status</Label>
+            <Select value={data.status} onValueChange={handlestatuschange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sell">For Sell</SelectItem>
+                <SelectItem value="rent">For Rent</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status}</p>}
+          </div>
+
+          {data.status === 'rent' && (
+          <div className="space-y-2">
+            <Label htmlFor="RentType">Rent Type</Label>
+            <Select value={data.rental_type} onValueChange={handleRentalTypechange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Rent Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Mounthly</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.rental_type && <p className="text-red-500 text-sm mt-1">{errors.rental_type}</p>}
+          </div>
+          )}
+
+                <div className="space-y-2">
+            <Label htmlFor="condition">Condition</Label>
+            <Select value={data.condition} onValueChange={handleConditionchange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Condition" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="used">Used</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.condition && <p className="text-red-500 text-sm mt-1">{errors.condition}</p>}
+                </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="currency">Currency</Label>
+            <Select value={data.currency} onValueChange={handlecurrencychange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                <SelectItem value="SYP">SYP (Syrian Pound)</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="price" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Price  ({data.currency})
+            </Label>
+            <Input id="price"  type="text" placeholder={`Price in ${currency}`} 
+             value={data.price}
+             onChange={handlePriceChange}
+             oninput="this.value = this.value.replace(/\D/g, '')"
+            />
+             {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
+          </div>
           {/* Brand and Model */}
           <div className="space-y-2">
             <Label htmlFor="brand">Brand</Label>
@@ -462,13 +547,14 @@ const submit = (e) => {
                         <SelectValue placeholder="Select brand">
                             {selectedBrand ? (
                                 <div className="flex items-center gap-4">
-                                    <img
-                                        src={selectedBrand.image || "/placeholder.svg"}
-                                        alt={`${selectedBrand.name} logo`}
-                                        width={30}
-                                        height={15}
-                                        className="object-contain"
+                                   {selectedBrand.name !== "Others" && (
+                                    <LazyLoadImage
+                                    src={selectedBrand.image || "/placeholder.svg"}
+                                    alt={`${selectedBrand.name} logo`}
+                                    className="object-contain w-[40px] h-[20px]"
+                                    effect="blur"
                                     />
+                                    )}
                                     <span>{selectedBrand.name}</span>
                                 </div>
                             ) : (
@@ -480,13 +566,14 @@ const submit = (e) => {
                         {carData.data.map((brand) => (
                             <SelectItem key={brand.id} value={brand.name}>
                                 <div className="flex items-center gap-4">
-                                    <img
-                                        src={brand.image || "/placeholder.svg"}
-                                        alt={`${brand.name} logo`}
-                                        width={30}
-                                        height={15}
-                                        className="object-contain"
-                                    />
+                                {brand.name !== "Others" && (
+                                     <LazyLoadImage
+                                      src={brand.image || "/placeholder.svg"}
+                                      alt={`${brand.name} logo`}
+                                      className="object-contain w-[40px] h-[20px]"
+                                      effect="blur"
+                                      />
+                                )}
                                     <span>{brand.name}</span>
                                 </div>
                             </SelectItem>
@@ -545,32 +632,6 @@ const submit = (e) => {
               {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="currency">Currency</Label>
-            <Select value={data.currency} onValueChange={handlecurrencychange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="USD">USD (US Dollar)</SelectItem>
-                <SelectItem value="SYP">SYP (Syrian Pound)</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="price" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Price  ({data.currency})
-            </Label>
-            <Input id="price"  type="text" placeholder={`Price in ${currency}`} 
-             value={data.price}
-             onChange={handlePriceChange}
-             oninput="this.value = this.value.replace(/\D/g, '')"
-            />
-             {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
-          </div>
 
           {/* Contact Information */}
           <div className="space-y-2">
@@ -852,19 +913,7 @@ const submit = (e) => {
             {errors.color && <p className="text-red-500 text-sm mt-1">{errors.color}</p>}
             </div>
 
-            <div className="space-y-2">
-            <Label htmlFor="currency">Status</Label>
-            <Select value={data.status} onValueChange={handlestatuschange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sell">For Sell</SelectItem>
-                <SelectItem value="rent">For Rent</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status}</p>}
-          </div>
+           
           {/* Tags */}
           <div className="md:col-span-2 space-y-4">
             <Label htmlFor="tags" className="flex items-center gap-2">

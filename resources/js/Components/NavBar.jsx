@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "./ui/input"
 import SearchBar from "./SearchBar"
 import { useState } from "react"
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 const NavBar = ({auth,status,hasVerifiedEmail,currency,resetpassstatus}) => {
 
   const [selectedBodyTypes, setSelectedBodyTypes] = useState("")
@@ -45,14 +47,14 @@ const NavBar = ({auth,status,hasVerifiedEmail,currency,resetpassstatus}) => {
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
-            <div className="font-bold text-2xl text-gray-800 xs-range:text-xs">
-              <span className="text-[#9f372e]">m</span>
-              <span>otom</span>
-              <span className="text-[#9f372e]">.</span>
-              <span>com</span>
-            </div>
-            {/* <img src="/images/logo.jpg" alt="" width={50} height={50} className="xs-range:w-9 xs-range:h-9"/> */}
-             
+            <LazyLoadImage
+            src="/images/logo.png"
+            alt={"Xmotors"}
+            width={50}
+            height={50}
+            className="xs-range:w-9 xs-range:h-9"
+            effect="blur" // Optional effect for lazy loading
+            />
           </Link>
 
           {/* Filters Button and Search Bar */}

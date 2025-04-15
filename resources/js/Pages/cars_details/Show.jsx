@@ -28,8 +28,17 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
     const [reviews, setReviews] = useState([])
     const [currentPage, setCurrentPage] = useState(1)
     const [hasMore, setHasMore] = useState(true)
-
-  const loadReviews = async (page = 1) => {
+    const handleCompanyClick = (companyId) => {
+      axios.post('/companies/session', { company_id: companyId })
+          .then(response => {
+              const redirectUrl = response.data.redirect;
+              router.visit(redirectUrl);
+          })
+          .catch(error => {
+              console.error('Failed to set car session:', error);
+          });
+  };
+  const loadCarReviews = async (page = 1) => {
     const res = await axios.get(route('cars.reviews.paginated', car.id), { params: { page } })
     const newReviews = res.data.reviews.data;
     if (page === 1) {
@@ -43,7 +52,7 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
   }
 
   useEffect(() => {
-    loadReviews(1)
+    loadCarReviews(1)
   }, []);
 
     const handleButtonClick = () => {
@@ -114,7 +123,7 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="relative w-12 h-12 rounded-full overflow-hidden border flex-shrink-0 cursor-pointer"
-                 onClick={() => router.visit(route("company.show", car.company.id))}>
+                 onClick={() => handleCompanyClick(car.company.id)}>
                    <LazyLoadImage
                     src={`/storage/${car.company.logo_path}`} 
                     alt={`${car.company.company_name} Logo`} 
@@ -130,8 +139,8 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
                 <div className="flex items-center">
                   <span className="text-xs font-medium mr-1">Rating:</span>
                    
-                      <RatingStars rating={car.rates || ""} size="sm" interactive={false} />
-                   
+                      <RatingStars rating={car.company.rates || ""} size="sm" interactive={false} />
+
                   <span className="ml-1 text-xs text-gray-600">{companyReviewsCount} Review</span>
                 </div>
                 <Button
@@ -160,7 +169,7 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
                 </div>
               </div>
               <p className="text-lg text-gray-700 mt-1">
-              {car.brand} {car.model}  {car.transmission} / {car.year} / {car.body_type}/{carFuel}
+              {car.brand} {car.model} {car.transmission} /{car.year} /{car.body_type}/{car.condition}
               </p>
             </div>
   
@@ -211,7 +220,7 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
                         </div>
                         <div className="flex justify-between py-2 border-b">
                           <span className="font-medium">Status:</span>
-                          <span>For {car.status}</span>
+                          <span> For {car.status}{car.rental_type ? ` · ${car.rental_type}` : ''}</span>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -560,7 +569,7 @@ const Show = ({auth,car,suggestedCars,hasVerifiedEmail}) => {
                   <X className="h-5 w-5" />
                 </Button>
               </div>
-              <UserRatingForm onClose={() => setShowRatingForm(false)} CarBrand = {car.brand} CarModel = {car.model} CarId = {car.id} CompanyId = {car.company.id} CompanyName = {car.company.company_name} auth={auth}/>
+              <UserRatingForm onClose={() => setShowRatingForm(false)} CarBrand = {car.brand} CarModel = {car.model} CarId = {car.id} CompanyId = {car.company.id} CompanyName = {car.company.company_name} auth={auth} reloadReviews={loadCarReviews}/>
             </div>
           </div>
         )}

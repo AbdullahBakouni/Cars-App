@@ -38,8 +38,21 @@ class CompanyController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, $id)
+
+     
+    public function setSession(Request $request)
+    {
+        $request->validate([
+            'company_id' => 'required|exists:company,id',
+        ]);
+    
+        session(['current_company_id' => $request->company_id]);
+    
+        return response()->json(['redirect' => route('companies.show')]);
+    }
+    public function show(Request $request)
 {
+    $companyId = session()->get('current_company_id');
     $company = Company::with([
         'user.phones' => function ($query) {
             $query->select('user_id', 'number');
@@ -47,10 +60,7 @@ class CompanyController extends Controller
         'reviews.user',
         'user',
         'reviews'
-    ])->findOrFail($id);
-
-    $sortOption = $request->query('sort', 'featured');
-
+    ])->findOrFail($companyId);
     $carsQuery = Car::select('id', 'year', 'price', 'rates', 'brand', 'model', 'description', 'mileage', 'currency', 'company_id', 'created_at')
         ->where('company_id', $company->id)
         ->with([
@@ -59,31 +69,14 @@ class CompanyController extends Controller
             }
         ]);
 
-    switch ($sortOption) {
-        case 'price-low':
-            $carsQuery->orderBy('price', 'asc');
-            break;
-        case 'price-high':
-            $carsQuery->orderBy('price', 'desc');
-            break;
-        case 'newest':
-            $carsQuery->orderBy('created_at', 'desc');
-            break;
-        case 'rating':
-            $carsQuery->withAvg('reviews', 'rating')->orderBy('reviews_avg_rating', 'desc');
-            break;
-        default:
-            $carsQuery->orderBy('created_at', 'desc');
-            break;
-    }
+  
 
-    $paginatedCars = $carsQuery->paginate(2)->withQueryString();
+    $paginatedCars = $carsQuery->paginate(10)->withQueryString();
     $user = Auth::user();
 
     return Inertia::render('company/CompanyDetails', [
         'company' => $company,
         'cars' => $paginatedCars, // Full paginator object
-        'sortOption' => $sortOption,
         'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
             ? $user->hasVerifiedEmail()
             : false,
@@ -157,7 +150,7 @@ public function update(Request $request, Company $company)
     $request->validate([
         'company_name' => 'nullable|string|max:255',
         'location' => 'nullable|string|max:255',
-        'company_logo' => 'nullable|image|max:2048',
+        'company_logo' => 'required|image|max:2048',
         'deleted_logo' => 'nullable|boolean',
         'page' => 'nullable|integer'
     ]);

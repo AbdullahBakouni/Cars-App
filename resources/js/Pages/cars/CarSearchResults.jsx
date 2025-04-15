@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/pagination"
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+import axios from 'axios';
 const NavBar = lazy(() => import("@/Components/NavBar"));
 const RatingStars = lazy(() => import("@/Components/RatingStars"));
 const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
@@ -33,6 +34,17 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
   const { resetpassstatus } = usePage().props;
   const currentPage = cars.current_page;
   const totalPages = cars.last_page;
+
+  const handleCardClick = (carId) => {
+    axios.post('/cars/session', { car_id: carId })
+        .then(response => {
+            const redirectUrl = response.data.redirect;
+            router.visit(redirectUrl);
+        })
+        .catch(error => {
+            console.error('Failed to set car session:', error);
+        });
+};
   useEffect(() => {
     // لو تغيّرت العملة فعلاً
     if (prevCurrency.current !== currency) {
@@ -232,9 +244,7 @@ const getSortLabel = (value) => {
           <div className="absolute top-2 right-2 z-10">
             <button
               className="w-8 h-8 bg-white/80 rounded-full flex items-center justify-center xs-range:w-5 xs-range:h-5"
-              onClick={() => {
-                router.visit(route("car.show", { car: car.id }));
-              }}
+              onClick={() => handleCardClick(car.id)}
             >
               <Eye className="w-4 h-4 text-gray-500" />
             </button>
@@ -261,25 +271,27 @@ const getSortLabel = (value) => {
             <div className="flex items-center justify-between text-sm text-gray-500 mb-2 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
             <div>
           {car.tags && car.tags.length > 0 ? (
-            <div className="flex gap-2">
-              {car.tags.slice(0, 3).map((tag) => (
+            <div className="flex gap-1 justify-center">
+              {car.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag.id}
-                  className="bg-gray-200 px-2 py-1 rounded-full text-xs text-gray-600 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]"
+                  className="bg-gray-200 px-2 py-1 rounded-full text-gray-600 text-[10px] leading-[9px]"
                 >
-                  {tag.name}
+                  {tag.name.split(" ").slice(0, 2).join(" ")}
                 </span>
               ))}
-              {car.tags.length > 3 && (
-                <span className="text-xs text-gray-500">+{car.tags.length - 3} more</span>
+              {car.tags.length > 2 && (
+                <span className="text-[9px] leading-[8px] text-gray-500">+{car.tags.length - 2} more</span>
               )}
             </div>
           ) : (
-            <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-500 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">{car.model}</span>
+            <span className="bg-gray-200 px-2 py-1 rounded-full text-gray-500 text-[10px] leading-[9px]">{car.condition}</span>
           )}
         </div>
         <div>
-        <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-500 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">For {car.status}</span>
+        <span className="bg-gray-200 px-2 py-1 rounded-full text-gray-500 text-[10px] leading-[9px]">
+            For {car.status}{car.rental_type ? ` · ${car.rental_type}` : ''}
+          </span>
         </div>
         </div>
             <div className="flex items-center justify-between">

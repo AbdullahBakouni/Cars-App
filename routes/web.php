@@ -104,14 +104,23 @@ Route::get('/set-currency', function (Request $request) {
 
 Route::middleware(CustomAuthenticate::class)->get('/my-company', [CompanyController::class, 'myCompany'])->name('company.my');
 
-Route::get('/car/{car}', [CarController::class, 'show'])->name('cars.show');
+
+Route::get('/cars/show', [CarController::class, 'show'])->name('cars.show');
+
+Route::post('/cars/session', [CarController::class, 'setSession'])->name('cars.setSession');
+
+Route::get('/company/show', [CompanyController::class, 'show'])->name('companies.show');
+
+Route::post('/companies/session', [CompanyController::class, 'setSession'])->name('cars.setSession');
+
+Route::middleware(CustomAuthenticate::class)->delete('/cars/destroy', [CarController::class, 'destroy'])->name('cars.destroy');
+
+Route::middleware(CustomAuthenticate::class)
+    ->get('/cars/edit', [CarController::class, 'edit'])
+    ->name('cars.edit');
 
 
-Route::middleware(CustomAuthenticate::class)->delete('/cars/{car}', [CarController::class, 'destroy']);
-
-Route::middleware(CustomAuthenticate::class)->get('/cars/edit/{id}', [CarController::class, 'edit'])->name('cars.edit');
-
-Route::middleware(CustomAuthenticate::class)->put('/cars/{id}', [CarController::class, 'update'])->name('cars.update');
+Route::middleware(CustomAuthenticate::class)->put('/cars/update/{id}', [CarController::class, 'update'])->name('cars.update');
 
 Route::middleware(CustomAuthenticate::class)->post('/store-phone-session', function () {
     $user = Auth::user();

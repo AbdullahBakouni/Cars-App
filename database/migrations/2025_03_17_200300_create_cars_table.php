@@ -23,6 +23,8 @@ return new class extends Migration
             $table->decimal('mileage', 15, 2);
             $table->enum('currency', ['SYP', 'USD'])->default('SYP');
             $table->enum('status', ['sell', 'rent', 'rented', 'sold'])->default('sell');
+            $table->enum('rental_type', ['daily', 'weekly', 'monthly', 'yearly'])->nullable();
+            $table->enum('condition', ['new', 'used'])->default('used');
             $table->decimal('rates', 3, 2)->default(0);
             $table->integer('engine')->nullable();
             $table->string('color')->nullable();

@@ -17,7 +17,7 @@ class Car extends Model
     protected $fillable = [
         'title', 'description', 'brand', 'model', 'year', 'location', 'price',
         'body_type', 'doors', 'cylinders', 'transmission', 'fuel', 'color', 'company_id','currency','mileage',
-        'status','rates','engine','user_id','phone_id'
+        'status','rates','engine','user_id','phone_id','rental_type','condition'
     ];
     // Define relationships
 

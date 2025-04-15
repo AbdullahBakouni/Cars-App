@@ -10,8 +10,6 @@ import {
   X,
   MapPin,
   DollarSign,
-  Phone,
-  MessageSquare,
   Tag,
   CarFront as Coupe,
   CarTaxiFront  as Sedan,
@@ -24,8 +22,6 @@ import {
   Zap,
   Fuel,
   Palette,
-  Building2,
-  ImageIcon,
   Check,
   LogIn,
 } from "lucide-react";
@@ -38,12 +34,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Head, useForm } from "@inertiajs/react";
+import { Head,useForm } from "@inertiajs/react";
 import carData from "../cars";
 import { Dialog, DialogContent } from "@/Components/ui/dialog";
-
-
-
+import { LazyLoadImage } from "react-lazy-load-image-component"
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
 const bodyTypes = [
   { value: "coupe", label: "Coupe", icon: Coupe },
@@ -74,6 +69,7 @@ const colorOptions = [
   { value: "orange", label: "Orange", hex: "#FFA500" },
   { value: "purple", label: "Purple", hex: "#800080" },
   { value: "beige", label: "Beige", hex: "#F5F5DCC" },
+  { value: "other", label: "Other", hex: "#9f372e" },
 ]
 
 export default function Update({auth,car,hasVerifiedEmail}) {
@@ -84,13 +80,12 @@ export default function Update({auth,car,hasVerifiedEmail}) {
     year: car?.year?.toString() || "",
     location: car?.location || "",
     price: car?.price || "",
-    company_name: car?.company?.company_name || "",
-    company_location: car?.company?.location || "",
-    company_logo: null,
     body_type: car?.body_type || "",
     mileage: car?.mileage || "",
     currency: car?.currency || "",
     status: car?.status || "",
+    rental_type:car?.rental_type || "",
+    condition:car?.condition || "",
     doors: car?.doors?.toString() || "",
     cylinders: car?.cylinders?.toString() || "",
     engine: car?.engine || "",
@@ -108,25 +103,16 @@ export default function Update({auth,car,hasVerifiedEmail}) {
     const [images, setImages] = useState([]);
     const [imageUrls, setImageUrls] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
-    const [selectedFuel, setSelectedFuel] = useState(null);
-    const [tags, setTags] = useState([]);
-    const [model, setModel] = useState("");
-    const [year, setYear] = useState("");
     const [tagInput, setTagInput] = useState("");
     const [selectedBodyType, setSelectedBodyType] = useState("");
-    const [IsElectric, setIsElectric] = useState("");
     const [selectedColor, setSelectedColor] = useState("");
-    const [companyLogo, setCompanyLogo] = useState(null);
-    const [companyLogoUrl, setCompanyLogoUrl] = useState("")
     const [isButtonDisabled, setIsButtonDisabled] = useState(false);
     const [currency, setCurrency] = useState("SYP");
     const [previousEngine, setPreviousEngine] = useState("");
     const [previousFuel, setPreviousFuel] = useState("");
     const fileInputRef = useRef(null);
-    const companyLogoInputRef = useRef(null);
     const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const isElectric = data.cylinders === "Electric";
-  
   useEffect(() => {
     if (!car) return;
 
@@ -144,16 +130,13 @@ export default function Update({auth,car,hasVerifiedEmail}) {
         fuel: car.fuel?.toLowerCase() ?? "",
         color: car.color,
         tags: car.tags,
-        company_name: car.company?.company_name ?? "",
-        company_location: car.company?.location ?? "",
         status: car.status,
+        rental_type:car.rental_type,
+        condition:car.condition,
     }));
     setSelectedBodyType(car.body_type || null);
     setSelectedBrand(matchedBrand || null);
     setSelectedColor(car.color || null);
-    if (!companyLogoUrl) {
-      setCompanyLogoUrl(car.company?.logo_path ? `/storage/${car.company.logo_path}` : null);
-  }
 
     if (car.images && car.images.length > 0) {
       setImageUrls(
@@ -180,25 +163,7 @@ const handleImageUpload = (e) => {
   setImageUrls((prev) => [...prev, ...newImages]);
   setData("new_images", [...data.new_images, ...files]);
 };
-    const handleCompanyLogoUpload = (e) => {
-      if (e.target.files && e.target.files[0]) {
-          const file = e.target.files[0];
-
-          setData("company_logo", file);
-
-          if (companyLogoUrl) {
-              URL.revokeObjectURL(companyLogoUrl);
-          }
-          setCompanyLogoUrl(URL.createObjectURL(file));
-      }
-    };
-    const removeCompanyLogo = () => {
-      if (companyLogoUrl) {
-          URL.revokeObjectURL(companyLogoUrl);
-      }
-      setCompanyLogoUrl(null);
-      setData("company_logo", null);
-    };
+   
   
     const handleDragOver = (e) => {
       e.preventDefault()
@@ -216,26 +181,6 @@ const handleImageUpload = (e) => {
       }
     }
   
-    const handleCompanyLogoDragOver = (e) => {
-      e.preventDefault()
-    }
-  
-    const handleCompanyLogoDrop = (e) => {
-      e.preventDefault()
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        const file = e.dataTransfer.files[0]
-        setCompanyLogo(file)
-  
-        // Revoke previous URL to prevent memory leaks
-        if (companyLogoUrl) {
-          URL.revokeObjectURL(companyLogoUrl)
-        }
-  
-        // Create URL for preview
-        const url = URL.createObjectURL(file)
-        setCompanyLogoUrl(url)
-      }
-    }
     const removeImage = (index,imageId) => {
       const image = imageUrls[index];
       if (image.isNew === true) {
@@ -340,7 +285,14 @@ const handleImageUpload = (e) => {
     const handlestatuschange = (value) => {
       setData('status', value);
     }
+    
+    const handleRentalTypechange = (value) => {
+      setData("rental_type", value);
+    }
 
+    const handleConditionchange = (value) => {
+      setData("condition", value);  
+    }
     const handleColorChange = (colorValue) => {
       setSelectedColor(colorValue); // Update the selected color
       setData("color", colorValue);   // Update form data
@@ -391,23 +343,16 @@ const handleImageUpload = (e) => {
       }
     }, [data.removed_images, car.images.length]);
 
-const submit = (e) => {
-    e.preventDefault(); // Prevent default form submission
-      if(auth.user && hasVerifiedEmail){
-        post(route("car.update", { id: car.id }), {
-          onError: (errors) => {
-              if (errors.company_logo) {
-                  console.log("Validation failed, keeping previous logo");
-                  setCompanyLogoUrl(car.company?.logo_path ? `/storage/${car.company.logo_path}` : null);
-              }
-          },
-      });
-      }
-      else{
+    const submit = (e) => {
+      e.preventDefault();
+      if (auth.user && hasVerifiedEmail) {
+        post(route("cars.update", car.id), data, {
+        });
+      } else {
         setLoginDialogOpen(true);
       }
-      
-};
+    };
+
   return (
     <>
     <Head title={"Update Your Car" } />
@@ -456,12 +401,13 @@ const submit = (e) => {
           {imageUrls.map((image, index) => ( // `image` is now the object with `id` and `url`
             <div key={image.id} className="relative group">
               <div className="aspect-square rounded-md overflow-hidden border">
-                <img
-                  src={image.url || "/placeholder.svg"} // Use `image.url`
-                  alt={`Car image ${index + 1}`}
-                  width={200}
-                  height={200}
-                  className="object-cover w-full h-full"
+                <LazyLoadImage
+                src={image.url || "/placeholder.svg"}
+                alt={`Car image ${index + 1}`}
+                width={200}
+                height={200}
+                className="object-cover h-full w-full"
+                effect="blur" // Optional effect for lazy loading
                 />
               </div>
               <button
@@ -495,6 +441,78 @@ const submit = (e) => {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="currency">Status</Label>
+            <Select value={data.status} onValueChange={handlestatuschange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sell">For Sell</SelectItem>
+                <SelectItem value="rent">For Rent</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status}</p>}
+          </div>
+
+                {data.status === 'rent' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="RentType">Rent Type</Label>
+                      <Select value={data.rental_type} onValueChange={handleRentalTypechange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Rent Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Mounthly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {errors.rental_type && <p className="text-red-500 text-sm mt-1">{errors.rental_type}</p>}
+                    </div>
+                    )}
+
+                    
+                <div className="space-y-2">
+            <Label htmlFor="condition">Condition</Label>
+            <Select value={data.condition} onValueChange={handleConditionchange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Condition" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="used">Used</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.condition && <p className="text-red-500 text-sm mt-1">{errors.condition}</p>}
+                </div>
+
+                <div className="space-y-2">
+            <Label htmlFor="currency">Currency</Label>
+            <Select value={data.currency} onValueChange={handlecurrencychange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                <SelectItem value="SYP">SYP (Syrian Pound)</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="price" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Price  ({data.currency})
+            </Label>
+            <Input id="price" type="text" placeholder={`Price in ${currency}`} 
+             value={data.price}
+             onChange={handlePriceChange}
+            />
+             {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
+          </div>
           {/* Brand and Model */}
           <div className="space-y-2">
             <Label htmlFor="brand">Brand</Label>
@@ -503,13 +521,14 @@ const submit = (e) => {
                         <SelectValue placeholder="Select brand">
                             {selectedBrand ? (
                                 <div className="flex items-center gap-4">
-                                    <img
-                                        src={selectedBrand.image || "/placeholder.svg"}
-                                        alt={`${selectedBrand.name} logo`}
-                                        width={30}
-                                        height={15}
-                                        className="object-contain"
+                                  {selectedBrand.name !== "Others" && (
+                                    <LazyLoadImage
+                                    src={selectedBrand.image || "/placeholder.svg"}
+                                    alt={`${selectedBrand.name} logo`}
+                                    className="object-contain w-[40px] h-[20px]"
+                                    effect="blur"
                                     />
+                                  )}
                                     <span>{selectedBrand.name}</span>
                                 </div>
                             ) : (
@@ -521,13 +540,14 @@ const submit = (e) => {
                         {carData.data.map((brand) => (
                             <SelectItem key={brand.id} value={brand.name}>
                                 <div className="flex items-center gap-4">
-                                    <img
-                                        src={brand.image || "/placeholder.svg"}
-                                        alt={`${brand.name} logo`}
-                                        width={30}
-                                        height={15}
-                                        className="object-contain"
+                                {brand.name !== "Others" && (
+                                    <LazyLoadImage
+                                    src={brand.image || "/placeholder.svg"}
+                                    alt={`${brand.name} logo`}
+                                    className="object-contain w-[40px] h-[20px]"
+                                    effect="blur"
                                     />
+                                )}
                                     <span>{brand.name}</span>
                                 </div>
                             </SelectItem>
@@ -585,109 +605,6 @@ const submit = (e) => {
             />
               {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage}</p>}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="currency">Currency</Label>
-            <Select value={data.currency} onValueChange={handlecurrencychange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="USD">USD (US Dollar)</SelectItem>
-                <SelectItem value="SYP">SYP (Syrian Pound)</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="price" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Price  ({data.currency})
-            </Label>
-            <Input id="price" type="text" placeholder={`Price in ${currency}`} 
-             value={data.price}
-             onChange={handlePriceChange}
-            />
-             {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
-          </div>
-          {/* Company Information */}
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border xs-range:rounded-sm">
-            <div className="space-y-2">
-              <Label htmlFor="company-logo" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Company Logo
-              </Label>
-              <div
-                className={cn(
-                  "w-24 h-24 mx-auto md:mx-0 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden xs-range:w-14 xs-range:h-12",
-                  companyLogoUrl ? "border-0" : "border-muted-foreground/30",
-                )}
-                onDragOver={handleCompanyLogoDragOver}
-                onDrop={handleCompanyLogoDrop}
-                onClick={() => companyLogoInputRef.current?.click()}
-              >
-                {companyLogoUrl ? (
-                  <div className="relative w-full h-full group">
-                    <img
-                      src={companyLogoUrl || "/placeholder.svg"}
-                      alt="Company logo"
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
-                      <button
-                        className="hidden group-hover:flex bg-destructive text-destructive-foreground rounded-full p-1"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          removeCompanyLogo()
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                )}
-                <input
-                  ref={companyLogoInputRef}
-                  id="company-logo"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleCompanyLogoUpload}
-                />
-              </div>
-              <p className="text-xs text-center md:text-left text-muted-foreground">Click or drag to upload logo</p>
-              {errors.company_logo && <p className="text-red-500 text-sm mt-1">{errors.company_logo}</p>}
-            </div>
-
-            <div className="space-y-2 flex flex-col justify-center">
-              <Label htmlFor="company-name" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Company Name
-              </Label>
-              <Input id="company-name" placeholder="Your company name (if applicable)"
-              value = {data.company_name}
-              onChange={(e) => setData("company_name", e.target.value)} 
-              />
-               {errors.company_name && <p className="text-red-500 text-sm mt-1">{errors.company_name}</p>}
-            </div>
-
-            <div className="space-y-2 flex flex-col justify-center">
-              <Label htmlFor="company-location" className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Company Location
-              </Label>
-              <Input id="company-location" placeholder="Your company Location (if applicable)"
-              value = {data.company_location}
-              onChange={(e) => setData("company_location", e.target.value)} 
-              />
-               {errors.company_location && <p className="text-red-500 text-sm mt-1">{errors.company_location}</p>}
-            </div>
-          </div>
-
           
          {/* Body Type */}
          <div className="md:col-span-2 space-y-3">
@@ -895,19 +812,7 @@ const submit = (e) => {
             {errors.color && <p className="text-red-500 text-sm mt-1">{errors.color}</p>}
             </div>
 
-            <div className="space-y-2">
-            <Label htmlFor="currency">Status</Label>
-            <Select value={data.status} onValueChange={handlestatuschange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sell">For Sell</SelectItem>
-                <SelectItem value="rent">For Rent</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status}</p>}
-          </div>
+           
           {/* Tags */}
           <div className="md:col-span-2 space-y-4">
             <Label htmlFor="tags" className="flex items-center gap-2">

@@ -106,10 +106,17 @@ class CarController extends Controller
     
             // ✅ إنشاء السيارة
             $car = $user->cars()->create($data);
-    
+
+            session(['current_car_id' => $car->id]);
             // ✅ معالجة الصور
             if ($request->hasFile('images')) {
                 $images = [];
+            
+                $carImagesDir = storage_path('app/public/car_images');
+                if (!file_exists($carImagesDir)) {
+                    mkdir($carImagesDir, 0755, true); // أنشئ المجلد إذا مو موجود
+                }
+            
                 foreach ($request->file('images') as $image) {
                     $originalPath = $image->store('temp_images', 'public');
                     $absolutePath = storage_path('app/public/' . $originalPath);
@@ -119,16 +126,25 @@ class CarController extends Controller
                     $destinationPath = storage_path('app/public/' . $compressedPath);
             
                     $this->resizeAndCompress($absolutePath, $destinationPath, 1280, 70, true);
+                    
                     unlink($absolutePath);
             
-                    $images[] = ['car_id' => $car->id, 'image_path' => $compressedPath];
+                    $images[] = [
+                        'car_id' => $car->id,
+                        'image_path' => $compressedPath,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
                 }
+            
                 CarImage::insert($images);
             }
             
             
             if ($request->filled('company_id')) {
                 $car->update(['company_id' => $request->company_id]);
+
+                session(['current_company_id' => $request->company_id]);
             }
             elseif ($request->filled('company_name') || $request->hasFile('company_logo')) {
                 $logoPath = null;
@@ -137,16 +153,23 @@ class CarController extends Controller
                 if ($request->hasFile('company_logo')) {
                     $tempLogoPath = $request->file('company_logo')->store('temp_logos', 'public');
                     $absoluteLogoPath = storage_path('app/public/' . $tempLogoPath);
-            
+                
                     $newLogoName = uniqid() . '.webp';
                     $compressedLogoPath = 'logos/' . $newLogoName;
                     $destinationLogoPath = storage_path('app/public/' . $compressedLogoPath);
-            
+                
+                    // تأكد من وجود مجلد logos
+                    $logosDir = storage_path('app/public/logos');
+                    if (!file_exists($logosDir)) {
+                        mkdir($logosDir, 0755, true);
+                    }
+                
                     $this->resizeAndCompress($absoluteLogoPath, $destinationLogoPath, 512, 80, true);
                     unlink($absoluteLogoPath);
-            
+                
                     $logoPath = $compressedLogoPath;
                 }
+                
             
                 // 🔍 البحث عن شركة موجودة بنفس الاسم والموقع (بدون حساسية لحالة الأحرف)
                 $existingCompany = Company::where('user_id', $user->id)
@@ -165,6 +188,8 @@ class CarController extends Controller
             
                     // ربط السيارة بالشركة الموجودة
                     $car->update(['company_id' => $existingCompany->id]);
+
+                    session(['current_company_id' => $existingCompany->id]);
                 } else {
                     // 🆕 إنشاء شركة جديدة
                     $company = Company::create([
@@ -175,6 +200,8 @@ class CarController extends Controller
                     ]);
             
                     $car->update(['company_id' => $company->id]);
+
+                    session(['current_company_id' => $company->id]);
                 }
             }
             
@@ -199,15 +226,15 @@ class CarController extends Controller
     /**
      * عرض سيارة معينة
      */
-    public function show($id)
+    public function show()
     {
         try {
             $user = Auth::user();
 
-            // session(['car_id' => $car]);
+            $carId = session()->get('current_car_id');
 
             // 🚀 Optimized eager loading with selected columns only
-            $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($id);
+            $car = Car::with(['images','company','user','reviews','company.reviews','reviews.user','phone'])->findOrFail($carId);
             // 💡 Optimized grouping for reviews by user_id
 
     
@@ -254,9 +281,10 @@ class CarController extends Controller
     /**
      * تحديث بيانات السيارة
      */
-    public function edit($id)
+    public function edit()
      {
-        $car = Car::with(['images','company','tags'])->findOrFail($id);
+        $carId = session()->get('current_car_id');
+        $car = Car::with(['images','company','tags'])->findOrFail($carId);
         $user = Auth::user();
          return Inertia::render('Update-Cars/Update', ['car' => $car,
          'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
@@ -266,10 +294,12 @@ class CarController extends Controller
     }
 
     
-    public function update(Request $request, $id)
+    public function update(Request $request,$id)
     {
+      
+
         $car = Car::findOrFail($id);
-        $user = $car->user; // Get the user associated with the car
+
         $validated = $request->validate([
             'description' => 'required|string',
             'brand' => 'required|string',
@@ -277,23 +307,12 @@ class CarController extends Controller
             'year' => 'required|integer',
             'location' => 'nullable|string',
             'price' => 'nullable|string|min:1',
-            'company_name' => [
-                'nullable',
-                'required_with:company_logo', // ✅ Ensures company_name is required if company_logo exists
-                'string',
-                'max:255'
-            ],
-            'company_location' => [
-                'nullable',
-                'required_with:company_logo', // ✅ Ensures company_location is required if company_logo exists
-                'string',
-                'max:255'
-            ],
-            'company_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'body_type' => 'nullable|string',
             'mileage' => 'nullable|string',
             'currency' => 'nullable|string',
             'status' => 'nullable|string',
+            'condition' => 'nullable',
+            'rental_type' => 'nullable',
             'doors' => 'nullable|integer',
             'cylinders' => 'nullable|string|max:20',
             'transmission' => 'nullable|string',
@@ -317,69 +336,42 @@ class CarController extends Controller
             $mileage = str_replace('.', '', $request->mileage);  // Remove all dots
             $validated['mileage'] = (float) $mileage;  // Cast to float after removing dots
         }
-        // Update or create company
-        if ($request->filled('company_name') || $request->filled('company_location') || $request->hasFile('company_logo')) {
-            if ($car->company->id !== null) {
-                // Handle company logo upload before updating
-                if ($request->hasFile('company_logo')) {
-                    if ($car->company->logo_path) {
-                        Storage::disk('public')->delete($car->company->logo_path);
-                    }
-            
-                    $logoPath = $request->file('company_logo')->store('logos', 'public');
-                } else {
-                    $logoPath = $car->company->logo_path; // Keep the old logo if no new file is uploaded
-                }
-            
-                // Update existing company
-                $car->company->update([
-                    'company_name' => $validated['company_name'] ?? $car->company->company_name,
-                    'location' => $validated['company_location'] ?? $car->company->location,
-                    'logo_path' => $logoPath,
-                ]);
-            } else {
-                // Handle company logo upload if creating a new company
-                $logoPath = null;
-                if ($request->hasFile('company_logo')) {
-                    $logoPath = $request->file('company_logo')->store('logos', 'public');
-                }
-            
-                // Create a new company
-                $company = Company::create([
-                    'user_id' => $user->id, // Associate with the user
-                    'company_name' => $validated['company_name'],
-                    'location' => $validated['company_location'],
-                    'logo_path' => $logoPath,
-                ]);
-            
-                // Attach the company to the car
-                $car->company_id = $company->id;
-                $car->save(); 
-            }
-        }
-    
+       
         // Update the car fields (excluding phone & WhatsApp)
-        $car->update(collect($validated)->except(['company_name', 'company_location', 'company_logo','tags','removed_tags'])->toArray());
+        $car->update(collect($validated)->except(['tags','removed_tags'])->toArray());
     
-        // Handle company logo upload
-        if ($request->hasFile('company_logo')) {
-            if ($car->company && $car->company->logo_path) {
-                Storage::disk('public')->delete($car->company->logo_path);
-            }
-            
-            $path = $request->file('company_logo')->store('logos', 'public');
-    
-            if ($car->company) {
-                $car->company->update(['logo_path' => $path]);
-            }
-        }
     
         // Handle new images
         if ($request->hasFile('new_images')) {
+            $images = [];
+        
             foreach ($request->file('new_images') as $image) {
-                $path = $image->store('car_images', 'public');
-                $car->images()->create(['image_path' => $path]);
+                // خزّن الصورة مؤقتاً
+                $originalPath = $image->store('temp_images', 'public');
+                $absolutePath = storage_path('app/public/' . $originalPath);
+        
+                // حدد اسم جديد وامتداد webp
+                $newFileName = uniqid() . '.webp';
+                $compressedPath = 'car_images/' . $newFileName;
+                $destinationPath = storage_path('app/public/' . $compressedPath);
+        
+                // ضغط وتغيير حجم الصورة
+                $this->resizeAndCompress($absolutePath, $destinationPath, 1280, 70, true);
+        
+                // احذف الصورة الأصلية المؤقتة
+                unlink($absolutePath);
+        
+                // إضافة البيانات إلى المصفوفة
+                $images[] = [
+                    'car_id' => $car->id,  // إضافة car_id
+                    'image_path' => $compressedPath,
+                    'created_at' => now(), // تأكد من إضافة تاريخ الإنشاء
+                    'updated_at' => now(), // تأكد من إضافة تاريخ التحديث
+                ];
             }
+        
+            // إدخال الصور في قاعدة البيانات دفعة واحدة
+            CarImage::insert($images);
         }
     
         // Handle image removal
@@ -421,9 +413,6 @@ class CarController extends Controller
             Tag::where('car_id', $id)->whereNotIn('id', $tagIds)->delete();
         }
         
-        
-        
-    
         session()->flash("success","Car was Updtaed successfully");
         return redirect()->route('cars.my');
     }
@@ -436,35 +425,50 @@ class CarController extends Controller
     /**
      * حذف سيارة
      */
-    public function destroy(Request $request, Car $car)
+    
+    
+    public function destroy(Request $request)
     {
-        // Ensure images relationship is loaded
-        $car->load('images');
+        // اسحب car_id من الجلسة واحذفه من الجلسة مباشرة
+        $carId = session()->pull('current_car_id');
     
-        // Delete images from storage and database
-        foreach ($car->images ?? [] as $image) {
-            // Construct the full path
-            $imagePath = 'car_images/' . $image->image_path;
-    
-            // Check if the file exists before deleting
-            if (Storage::disk('public')->exists($imagePath)) {
-                Storage::disk('public')->delete($imagePath);
-            }
-    
-            // Delete image record from database
-            $image->delete();
+        if (!$carId) {
+            abort(404, 'No car ID found in session.');
         }
     
-        // Delete the car record
-            $car->delete();
+        // تحميل السيارة مع الصور
+        $car = Car::with(['images'])->findOrFail($carId);
 
-            $page = $request->input('page', 1);
 
-            session()->flash("success","Car was deleted successfully");
-        // Redirect with success message, updated cars, and email verification status
-        return redirect()->route('cars.my', ['page' => $page]);
-            
+        $carImages = CarImage::where('car_id', $carId)->get();
+       
+
+    if ($carImages && $carImages->count() > 0) {
+
+    foreach ($carImages as $image) {
+        $imagePath = $image->image_path;
+       
+         if (Storage::disk('public')->exists($imagePath)) {
+            Storage::disk('public')->delete($imagePath);
+         }
     }
+
+    // حذف سجلات الصور من قاعدة البيانات
+     $car->images()->delete();
+}
+
+// حذف السيارة
+     $car->delete();
+    
+        // جلب رقم الصفحة الحالي إذا موجود
+        $page = $request->input('page', 1);
+    
+        session()->flash("success", "Car was deleted successfully");
+    
+        // إعادة التوجيه لصفحة سيارات المستخدم
+        return redirect()->route('cars.my', ['page' => $page]);
+    }
+    
     
 
 
@@ -500,7 +504,7 @@ class CarController extends Controller
         $categoryName = $request->query('category');
     
         // 🧠 الحقول الأساسية المطلوبة
-        $selectFields = ['id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price', 'currency', 'status'];
+        $selectFields = ['id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price', 'currency', 'status','rental_type','condition'];
     
         // 🧠 الفئات التي تتطلب cylinders
         $categoriesRequiringCylinders = ['Elecrtic', 'Sport', 'SuperCars', 'Adventure'];
@@ -512,7 +516,7 @@ class CarController extends Controller
         $query = Car::select($selectFields)
             ->with([
                 'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
-                'tags',
+                'tags' => fn($q) => $q->select('car_id', 'name')->limit(2),
                 'company'
             ]);
     
@@ -748,5 +752,16 @@ class CarController extends Controller
         ]);
     }
     
+    public function setSession(Request $request)
+{
+    $request->validate([
+        'car_id' => 'required|exists:cars,id',
+    ]);
+
+    session(['current_car_id' => $request->car_id]);
+
+    return response()->json(['redirect' => route('cars.show')]);
+}
+
 }
 
