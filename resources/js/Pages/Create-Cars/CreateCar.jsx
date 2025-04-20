@@ -11,7 +11,6 @@ import {
   MapPin,
   DollarSign,
   Phone,
-  MessageSquare,
   Tag,
   CarFront as Coupe,
   CarTaxiFront  as Sedan,
@@ -44,7 +43,15 @@ import { Dialog, DialogContent } from "@/Components/ui/dialog";
 import { Inertia } from "@inertiajs/inertia";
 import { LazyLoadImage } from "react-lazy-load-image-component"
 import 'react-lazy-load-image-component/src/effects/blur.css';
-
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 const bodyTypes = [
   { value: "coupe", label: "Coupe", icon: Coupe },
   { value: "sedan", label: "Sedan", icon: Sedan },
@@ -84,8 +91,9 @@ export default function CreateCar({ auth, hasVerifiedEmail })
   const{company_name} = usePage().props;
   const{company_location} = usePage().props;
   const{company_id} = usePage().props;
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const isCompanyDataAvailable = company_name && company_location;
-  const { data, setData, post,errors,processing } = useForm({
+  const { data, setData, post, errors, processing } = useForm({
     title:'',
     description: '',
     brand: '',
@@ -113,6 +121,14 @@ export default function CreateCar({ auth, hasVerifiedEmail })
     images:[],
     tags: [],
 });
+
+
+useEffect(() => {
+  // Show the dialog only if there are any errors
+  if (Object.keys(errors).length > 0) {
+    setShowErrorDialog(true);
+  }
+}, [errors]);
  useEffect(() => {
     if (!isCompanyDataAvailable) return;
 
@@ -748,7 +764,7 @@ const submit = (e) => {
                     onClick={() => handleBodyTypeChange(type.value)}
                   >
                     {isSelected && (
-                      <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                      <div className="absolute top-1 right-1 bg-primary text-white rounded-full p-1">
                         <Check className="h-2 w-2 sm:h-3 sm:w-3" />
                       </div>
                     )}
@@ -945,7 +961,7 @@ const submit = (e) => {
           </div>
         </div>
         {/* Submit Button */}
-        <Button className="w-full md:w-auto mt-5 xs-range:mt-2" size="lg"  type="submit" disabled={processing}>
+        <Button className="w-full md:w-auto mt-5 xs-range:mt-2 text-white hover:bg-primary-hover" size="lg"  type="submit" disabled={processing}>
         Submit Listing
         </Button>
         </form>
@@ -954,7 +970,7 @@ const submit = (e) => {
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-6">
             <div className="rounded-full bg-rose-100 p-3 mb-4">
-              <LogIn className="h-6 w-6 text-blue-500" />
+              <LogIn className="h-6 w-6 text-primary" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
             <p className="text-center text-gray-500 mb-6">You need to login to Rate cars.</p>
@@ -962,6 +978,28 @@ const submit = (e) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Form Error</AlertDialogTitle>
+      <AlertDialogDescription>
+        Please fix the following errors before submitting:
+        <ul className="mt-2 list-disc list-inside text-red-600 space-y-1">
+          {Object.entries(errors).map(([field, message]) => (
+            <li key={field}>{message}</li>
+          ))}
+        </ul>
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogAction onClick={() => setShowErrorDialog(false)} className = "text-white">
+        Okay
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+
     </div>
     </>
   )

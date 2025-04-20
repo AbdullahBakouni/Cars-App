@@ -21,19 +21,25 @@ class CarRequest extends FormRequest
     'location' => 'required|string|max:255',
     'price' => 'required|numeric|min:1',
     'phone' => ['required', 'regex:/^\+963\s?\d{9}$|^09\d{8}$/'],
-    'company_name' => [
-        'nullable',
-        'required_with:company_logo', // ✅ Ensures company_name is required if company_logo exists
-        'string',
-        'max:255'
-    ],
+   'company_name' => [
+    'nullable',
+    'required_with:company_logo,company_location',
+    'string',
+    'max:255',
+        ],
     'company_location' => [
         'nullable',
-        'required_with:company_logo', // ✅ Ensures company_location is required if company_logo exists
+        'required_with:company_logo,company_name',
         'string',
-        'max:255'
+        'max:255',
     ],
-    'company_logo' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+    'company_logo' => [
+        'nullable', // 👈 now optional unless the others are present
+        'required_with:company_name,company_location',
+        'image',
+        'mimes:jpeg,png,jpg,gif,svg',
+        'max:2048',
+    ],
     'body_type' => 'required|string|max:50',
     'currency' => 'required',
     'engine' => 'nullable',

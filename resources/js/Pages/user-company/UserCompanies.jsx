@@ -41,7 +41,7 @@ const UserCompanies = ({auth,company,hasVerifiedEmail}) => {
     const { success } = usePage().props;
     const [selectedCompany, setSelectedCompany] = useState(null)
     const [dialogOpen, setDialogOpen] = useState(false)
-
+console.log(company)
     useEffect(() => {
       if (company?.current_page) {
         setCurrentPageState(company.current_page);
@@ -189,7 +189,7 @@ const UserCompanies = ({auth,company,hasVerifiedEmail}) => {
                   }}
                 >
           <DialogTrigger asChild>
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => setDialogOpen(true)} className = "text-white">
               <Car className="h-4 w-4 mr-2" />
               Add New Car
             </Button>
@@ -206,45 +206,74 @@ const UserCompanies = ({auth,company,hasVerifiedEmail}) => {
               <RadioGroup value={selectedCompany} onValueChange={handleCompanySelect}>
               <ScrollArea className="max-h-[300px] pr-3">
                 <div className="space-y-3">
-                  {company.data.map((company) => (
-                    <div
-                      key={company.id}
-                      className={`border rounded-lg p-3 transition-colors ${
-                        selectedCompany === company.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <RadioGroupItem value={company.id} id={`company-${company.id}`} className="sr-only" />
-                      <Label htmlFor={`company-${company.id}`} className="flex items-center cursor-pointer">
-                        <div className="relative w-10 h-10 rounded-md overflow-hidden mr-3 flex-shrink-0">
-                           <LazyLoadImage
-                            src={`storage/${company.logo_path}`}
-                            alt={`${company.company_name}`}
-                            className="object-cover"
-                            effect="blur" // Optional effect for lazy loading
-                            />
-                             {company?.rates >= 4.5 && (
-                            <div className="absolute -bottom-1 -right-1">
-                           
-                              <CheckCircle className="h-4 w-4 text-green-500 fill-white" />
+                <div className="space-y-3">
+                    {company.data.map((company) => {
+                      const isVerifiedCompany =
+                        company?.rates >= 4.7 &&
+                        company?.cars_count > 20 &&
+                        (() => {
+                          const createdDate = new Date(company?.created_at);
+                          const now = new Date();
+                          const diffInMonths =
+                            (now.getFullYear() - createdDate.getFullYear()) * 12 +
+                            (now.getMonth() - createdDate.getMonth());
+                          return diffInMonths >= 7;
+                        })();
+
+                      return (
+                        <div
+                          key={company.id}
+                          className={`border rounded-lg p-3 transition-colors ${
+                            selectedCompany === company.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <RadioGroupItem
+                            value={company.id}
+                            id={`company-${company.id}`}
+                            className="sr-only"
+                          />
+                          <Label
+                            htmlFor={`company-${company.id}`}
+                            className="flex items-center cursor-pointer"
+                          >
+                            <div className="relative w-10 h-10 rounded-md overflow-hidden mr-3 flex-shrink-0">
+                              <LazyLoadImage
+                                src={`storage/${company.logo_path}`}
+                                alt={`${company.company_name}`}
+                                className="object-cover"
+                                effect="blur"
+                              />
+                              {isVerifiedCompany && (
+                                <div className="absolute -bottom-1 -right-1">
+                                  <CheckCircle className="h-4 w-4 text-primary fill-white" />
+                                </div>
+                              )}
                             </div>
-                             )}
+                            <div className="flex-grow">
+                              <div className="flex items-center">
+                                <span className="font-medium">{company.company_name}</span>
+                                {isVerifiedCompany && (
+                                  <span className="ml-1 text-xs text-green-600 font-medium">
+                                    Verified
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center text-muted-foreground mt-1">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                <span className="text-xs">{company.location}</span>
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {company.cars_count} cars
+                            </div>
+                          </Label>
                         </div>
-                        <div className="flex-grow">
-                          <div className="flex items-center">
-                            <span className="font-medium">{company.company_name}</span>
-                            {company?.rates >= 4.5 && (
-                              <span className="ml-1 text-xs text-green-600 font-medium">Verified</span>
-                            )}
-                          </div>
-                          <div className="flex items-center text-muted-foreground mt-1">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            <span className="text-xs">{company.location}</span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">{company.cars_count} cars</div>
-                      </Label>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
+
                   
                 </div>
                 </ScrollArea>
@@ -256,7 +285,7 @@ const UserCompanies = ({auth,company,hasVerifiedEmail}) => {
               <DialogClose asChild>
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
-              <Button onClick={handleContinue} disabled={!selectedCompany}>
+              <Button onClick={handleContinue} disabled={!selectedCompany} className = "text-white">
                 Continue
               </Button>
             </DialogFooter>
@@ -265,9 +294,28 @@ const UserCompanies = ({auth,company,hasVerifiedEmail}) => {
                   </div>
           
                   <div className="grid gap-8">
-                    {company.data.map((company) => (
-                      <CompanyCard key={company.id} company={company} currentPage={currentPageState} />
-                    ))}
+                  {company.data.map((company) => {
+                    const isVerifiedCompany =
+                      company?.rates >= 4.7 &&
+                      company?.cars_count > 20 &&
+                      (() => {
+                        const createdDate = new Date(company?.created_at);
+                        const now = new Date();
+                        const diffInMonths =
+                          (now.getFullYear() - createdDate.getFullYear()) * 12 +
+                          (now.getMonth() - createdDate.getMonth());
+                        return diffInMonths >= 7;
+                      })();
+
+                    return (
+                      <CompanyCard
+                        key={company.id}
+                        company={company}
+                        currentPage={currentPageState}
+                        isVerified={isVerifiedCompany}
+                      />
+                    );
+                  })}
                   </div> 
 
                   {company.data.length === 0 && (
@@ -312,7 +360,7 @@ const UserCompanies = ({auth,company,hasVerifiedEmail}) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction>OK</AlertDialogAction>
+            <AlertDialogAction className = "text-white">OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

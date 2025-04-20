@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -491,160 +492,231 @@ class CarController extends Controller
         ]);
     }
 
+    public function filterCars(Request $request)
+{
+    $filters = $request->all();
+    $query = Car::query();
+
+    foreach ([
+        'brand_name' => 'brand',
+        'model_name' => 'model',
+        'body_type'  => 'body_type',
+        'currency'   => 'currency',
+        'status'     => 'status',
+        'rental_type'=> 'rental_type',
+        'condition'  => 'condition',
+        'doors'      => 'doors',
+        'cylinders'  => 'cylinders',
+        'engine'     => 'engine',
+        'transmission'=> 'transmission',
+        'fuel'       => 'fuel',
+        'color'      => 'color',
+        'location'   => 'location',
+    ] as $param => $column) {
+        $value = $request->query($param, $filters[$param] ?? null);
+        if (!empty($value)) {
+            $query->where($column, $value);
+        }
+    }
+
+    // 🔢 فلترة بالسنة
+    if (!empty($filters['yearfrom'])) {
+        $query->where('year', '>=', $filters['yearfrom']);
+    }
+    if (!empty($filters['yearto'])) {
+        $query->where('year', '<=', $filters['yearto']);
+    }
+
+    // 💰 فلترة بالسعر
+    if (!empty($filters['pricefrom'])) {
+        $query->where('price', '>=', $filters['pricefrom']);
+    }
+    if (!empty($filters['priceto'])) {
+        $query->where('price', '<=', $filters['priceto']);
+    }
+
+    // 📊 فلترة بالكيلومترات
+    if (!empty($filters['mileagefrom'])) {
+        $query->where('mileage', '>=', $filters['mileagefrom']);
+    }
+    if (!empty($filters['mileageto'])) {
+        $query->where('mileage', '<=', $filters['mileageto']);
+    }
+    return response()->json([
+        'count' => $query->count(),
+    ]);
+}
+
+private function getExchangeRate($base = 'USD')
+{
+    $apiUrl = env('EXCHANGE_API_URL', 'https://v6.exchangerate-api.com/v6/f22811ef8e6bb9fb048a16a6/latest/USD');
+
+    $response = Http::get("$apiUrl/$base");
+
+    if ($response->ok()) {
+        return $response->json()['rates'];
+    }
+
+    return null;
+}
 
     public function getCarsByBodyType(Request $request)
-    {
-        $user = Auth::user();
-        $bodyTypeId = $request->query('body_type');
-        $brandName = $request->query('brand_name');
-        $modelName = $request->query('model_name');
-        $sortBy = $request->query('sort', 'posted');
-        $price = $request->query('maxPrice');
-        $currency = $request->query('currency');
-        $categoryName = $request->query('category');
-    
-        // 🧠 الحقول الأساسية المطلوبة
-        $selectFields = ['id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price', 'currency', 'status','rental_type','condition'];
-    
-        // 🧠 الفئات التي تتطلب cylinders
-        $categoriesRequiringCylinders = ['Elecrtic', 'Sport', 'SuperCars', 'Adventure'];
-        if (in_array($categoryName, $categoriesRequiringCylinders)) {
-            $selectFields[] = 'cylinders';
-        }
-    
-        // 🧱 الاستعلام الأساسي
-        $query = Car::select($selectFields)
-            ->with([
-                'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
-                'tags' => fn($q) => $q->select('car_id', 'name')->limit(2),
-                'company'
-            ]);
-    
-        // 🎯 ترتيب النتائج
-        match ($sortBy) {
-            'price-low'    => $query->orderBy('price', 'asc'),
-            'price-high'   => $query->orderBy('price', 'desc'),
-            'year-new'     => $query->orderBy('year', 'desc'),
-            'year-old'     => $query->orderBy('year', 'asc'),
-            'mileage-low'  => $query->orderBy('mileage', 'asc'),
-            'mileage-high' => $query->orderBy('mileage', 'desc'),
-            default        => $query->orderBy('created_at', 'desc'),
-        };
-    
-        // 🧩 فلاتر إضافية
-        if ($bodyTypeId) {
-            $query->where('body_type', $bodyTypeId);
-        }
-    
-        if ($brandName) {
-            $query->where('brand', $brandName);
-        }
-    
-        if ($brandName && $modelName) {
-            $query->where('model', $modelName);
-        }
-    
-        if ($request->has('currency') && in_array($currency, ['SYP', 'USD'])) {
-            $query->where('currency', $currency);
-        }
-    
-        // 🎯 فلترة حسب الفئة
-        match ($categoryName) {
-            'Economy' => $query->where(function ($q) {
-                $q->where('currency', 'SYP')->whereBetween('price', [20_000_000, 60_000_000]);
-            })->orWhere(function ($q) {
-                $q->where('currency', 'USD')->whereBetween('price', [2_000, 6_000]);
-            }),
-        
-            'Family' => $query->where('body_type', 'suv')->whereIn('doors', [4, 5]),
-        
-            'Elecrtic' => $query->where(function ($q) {
-                $q->where('cylinders', 'Electric');
-            }),
-        
-            'Luxury' => $query->where('body_type', 'sedan')->where(function ($q) {
-                $q->where(function ($qq) {
-                    $qq->where('currency', 'SYP')->whereBetween('price', [100_000_000, 1_200_000_000]);
-                })->orWhere(function ($qq) {
-                    $qq->where('currency', 'USD')->whereBetween('price', [100_000, 220_000]);
-                });
-            }),
-        
-            'Sport' => $query->where('body_type', 'coupe')->where(function ($q) {
-                $q->whereIn('cylinders', [6, 8, 10])->where(function ($qq) {
-                    $qq->where('currency', 'SYP')->whereBetween('price', [50_000_000, 100_000_000]);
-                })->orWhere(function ($qq) {
-                    $qq->where('currency', 'USD')->whereBetween('price', [50_000, 510_000]);
-                });
-            }),
-        
-            'SuperCars' => $query->where('body_type', 'coupe')->where(function ($q) {
-                $q->whereIn('cylinders', [8, 10, 12, 16])->where(function ($qq) {
-                    $qq->where('currency', 'SYP')->whereBetween('price', [60_000_000, 140_000_000]);
-                })->orWhere(function ($qq) {
-                    $qq->where('currency', 'USD')->whereBetween('price', [60_000, 120_000]);
-                });
-            }),
-        
-            'Adventure' => $query->where('body_type', 'suv')->where(function ($q) {
-                $q->whereIn('cylinders', [6, 8])->where(function ($qq) {
-                    $qq->where('currency', 'SYP')->whereBetween('price', [30_000_000, 60_000_000]);
-                })->orWhere(function ($qq) {
-                    $qq->where('currency', 'USD')->whereBetween('price', [30_000, 60_000]);
-                });
-            }),
-        
-            'Utility' => $query->where(function ($q) {
-                $q->where('body_type', 'minivan')->orWhere('body_type', 'pickup');
-            }),
-        
-            default => null,
-        };
-        
-        // 💰 فلترة بالسعر فقط إذا ما في فلاتر أخرى
-        if (!$brandName && !$modelName && !$bodyTypeId && $price !== null) {
-            if (!is_numeric($price)) {
-                return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
-            }
-    
-            $price = (float) $price;
-    
-            $cars = Car::select($selectFields)
-            ->when($currency === 'SYP', function ($query) use ($price) {
-                // إذا كانت العملة SYP، إضافة أو خصم 10,000,000
-                $query->whereBetween('price', [$price - 10000000, $price + 10000000]);
-            })
-            ->when($currency === 'USD', function ($query) use ($price) {
-                // إذا كانت العملة USD، إضافة أو خصم 1000
-                $query->whereBetween('price', [$price - 1000, $price + 1000]);
-            })
-            ->where('currency', $currency)
-            ->orderByRaw("ABS(price - ?)", [$price])
-            ->with([
-                'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
-                'tags'
-            ])->paginate(40);
-               
-        } else {
-            $cars = $query->paginate(10);
-        }
-    
-        return Inertia::render('cars/CarSearchResults', [
-            'cars' => $cars,
-            'totalResults' => $cars->total(),
-            'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
-                ? $user->hasVerifiedEmail()
-                : false,
-            'filters' => [
-                'bodyTypeId' => $bodyTypeId,
-                'brandName' => $brandName,
-                'modelName' => $modelName,
-                'sortBy' => $sortBy,
-                'price' => $price,
-                'categoryName' => $categoryName,
-            ],
-        ]);
+{
+    $user = Auth::user();
+
+    // 🧠 جميع الفلاتر المحتملة من الفورم أو الروابط
+    $filters = $request->all();
+
+    $sortBy = $request->query('sort', 'posted');
+    $categoryName = $request->query('category');
+    $price = $request->query('maxPrice');
+
+    $selectFields = ['id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price', 'currency', 'status', 'rental_type', 'condition'];
+
+    // 🔋 إذا التصنيف يتطلب cylinders
+    $categoriesRequiringCylinders = ['Elecrtic', 'Sport', 'SuperCars', 'Adventure'];
+    if (in_array($categoryName, $categoriesRequiringCylinders)) {
+        $selectFields[] = 'cylinders';
     }
+
+    $query = Car::select($selectFields)
+        ->with([
+            'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
+            'tags' => fn($q) => $q->select('car_id', 'name')->limit(2),
+            'company'
+        ]);
+
+    // 🎯 الترتيب
+    match ($sortBy) {
+        'price-low'    => $query->orderBy('price', 'asc'),
+        'price-high'   => $query->orderBy('price', 'desc'),
+        'year-new'     => $query->orderBy('year', 'desc'),
+        'year-old'     => $query->orderBy('year', 'asc'),
+        'mileage-low'  => $query->orderBy('mileage', 'asc'),
+        'mileage-high' => $query->orderBy('mileage', 'desc'),
+        default        => $query->orderBy('created_at', 'desc'),
+    };
+
+    // ⚙️ فلترة حسب القيم العامة (من form أو query)
+    foreach ([
+        'brand_name' => 'brand',
+        'model_name' => 'model',
+        'body_type'  => 'body_type',
+        'currency'   => 'currency',
+        'status'     => 'status',
+        'rental_type'=> 'rental_type',
+        'condition'  => 'condition',
+        'doors'      => 'doors',
+        'cylinders'  => 'cylinders',
+        'engine'     => 'engine',
+        'transmission'=> 'transmission',
+        'fuel'       => 'fuel',
+        'color'      => 'color',
+        'location'   => 'location',
+    ] as $param => $column) {
+        $value = $request->query($param, $filters[$param] ?? null);
+        if (!empty($value)) {
+            $query->where($column, $value);
+        }
+    }
+
+    // 🔢 فلترة بالسنة
+    if (!empty($filters['yearfrom'])) {
+        $query->where('year', '>=', $filters['yearfrom']);
+    }
+    if (!empty($filters['yearto'])) {
+        $query->where('year', '<=', $filters['yearto']);
+    }
+
+    // 💰 فلترة بالسعر
+    if (!empty($filters['pricefrom'])) {
+        $query->where('price', '>=', $filters['pricefrom']);
+    }
+    if (!empty($filters['priceto'])) {
+        $query->where('price', '<=', $filters['priceto']);
+    }
+
+    // 📊 فلترة بالكيلومترات
+    if (!empty($filters['mileagefrom'])) {
+        $query->where('mileage', '>=', $filters['mileagefrom']);
+    }
+    if (!empty($filters['mileageto'])) {
+        $query->where('mileage', '<=', $filters['mileageto']);
+    }
+
+    // 🧩 فلترة حسب الفئة
+    match ($categoryName) {
+        'Economy' => $query->where(function ($q) {
+            $q->where('currency', 'SYP')->whereBetween('price', [20_000_000, 60_000_000]);
+        })->orWhere(function ($q) {
+            $q->where('currency', 'USD')->whereBetween('price', [2_000, 6_000]);
+        }),
+        'Family' => $query->where('body_type', 'suv')->whereIn('doors', [4, 5]),
+        'Elecrtic' => $query->where('cylinders', 'Electric'),
+        'Luxury' => $query->where('body_type', 'sedan')->where(function ($q) {
+            $q->where(function ($qq) {
+                $qq->where('currency', 'SYP')->whereBetween('price', [100_000_000, 1_200_000_000]);
+            })->orWhere(function ($qq) {
+                $qq->where('currency', 'USD')->whereBetween('price', [100_000, 220_000]);
+            });
+        }),
+        'Sport' => $query->where('body_type', 'coupe')->where(function ($q) {
+            $q->whereIn('cylinders', [6, 8, 10])->where(function ($qq) {
+                $qq->where('currency', 'SYP')->whereBetween('price', [50_000_000, 100_000_000]);
+            })->orWhere(function ($qq) {
+                $qq->where('currency', 'USD')->whereBetween('price', [50_000, 510_000]);
+            });
+        }),
+        'SuperCars' => $query->where('body_type', 'coupe')->where(function ($q) {
+            $q->whereIn('cylinders', [8, 10, 12, 16])->where(function ($qq) {
+                $qq->where('currency', 'SYP')->whereBetween('price', [60_000_000, 140_000_000]);
+            })->orWhere(function ($qq) {
+                $qq->where('currency', 'USD')->whereBetween('price', [60_000, 120_000]);
+            });
+        }),
+        'Adventure' => $query->where('body_type', 'suv')->where(function ($q) {
+            $q->whereIn('cylinders', [6, 8])->where(function ($qq) {
+                $qq->where('currency', 'SYP')->whereBetween('price', [30_000_000, 60_000_000]);
+            })->orWhere(function ($qq) {
+                $qq->where('currency', 'USD')->whereBetween('price', [30_000, 60_000]);
+            });
+        }),
+        'Utility' => $query->where(function ($q) {
+            $q->where('body_type', 'minivan')->orWhere('body_type', 'pickup');
+        }),
+        default => null,
+    };
+
+    // 💰 استثناء إذا بس في سعر وما في فلاتر أخرى
+    if (empty($filters['brand_name']) && empty($filters['model_name']) && empty($filters['body_type']) && $price !== null) {
+        if (!is_numeric($price)) {
+            return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
+        }
+
+        $cars = Car::select($selectFields)
+            ->when($filters['currency'] === 'SYP', fn($q) => $q->whereBetween('price', [$price - 10000000, $price + 10000000]))
+            ->when($filters['currency'] === 'USD', fn($q) => $q->whereBetween('price', [$price - 1000, $price + 1000]))
+            ->where('currency', $filters['currency'])
+            ->orderByRaw("ABS(price - ?)", [$price])
+            ->with(['images' => fn($q) => $q->select('car_id', 'image_path')->limit(1), 'tags'])
+            ->paginate(40);
+    } else {
+        $cars = $query->paginate(10);
+    }
+    return Inertia::render('cars/CarSearchResults', [
+        'cars' => $cars,
+        'totalResults' => $cars->total(),
+        'hasVerifiedEmail' => $user && $user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail
+            ? $user->hasVerifiedEmail()
+            : false,
+        'filters' => array_merge($filters, [
+            'sortBy' => $sortBy,
+            'price' => $price,
+            'categoryName' => $categoryName,
+        ]),
+    ]);
+}
+
     
     public function updateStatus(Request $request)
     {
@@ -703,8 +775,7 @@ class CarController extends Controller
             // Get the highest-rated review for each car
             'reviews' => function ($query) {
                 $query->with('user') // Fetch user details for the top review
-                      ->orderBy('rating', 'desc') // Sort by rating in descending order
-                      ->limit(1); // Limit to 1 review
+                      ->orderBy('rating', 'desc');// Sort by rating in descending orde // Limit to 1 review
             },
             'company' => function ($query) {
                 $query->select('id', 'company_name', 'logo_path');

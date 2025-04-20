@@ -39,7 +39,7 @@ export default function VerifyEmail({ status }) {
                 </div>
             )}
                  <form className="space-y-4" onSubmit={submit}>
-                   <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={processing}>
+                   <Button type="submit" className="w-full bg-primary hover:bg-primary-hover" disabled={processing}>
                    Resend Verification Email
                    </Button>
                    <Link

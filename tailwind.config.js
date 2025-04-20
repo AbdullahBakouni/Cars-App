@@ -25,12 +25,6 @@ export default {
          // Custom breakpoint for extra small screens (480px)
          'sm-range': { 'min': '500px', 'max': '770px' },
          'xs-s-range' : {'min':'320px', 'max':'370px'},
-        // 'sx': '640px',  // Default sm breakpoint
-        // 'md': '768px',  // Default md breakpoint
-        // 'lg': '1024px', // Default lg breakpoint
-        // 'xl': '1280px', // Default xl breakpoint
-        // '2xl': '1536px', // Default 2xl breakpoint
-        // '3xl': '1600px', // Custom breakpoint for very large screens
       },
       colors: {
         border: "hsl(var(--border))",
@@ -66,6 +60,8 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        primary: "#9f372e",
+        "primary-hover": "#962118",
         blue: {
           500: "#3366FF",
           600: "#2952CC",

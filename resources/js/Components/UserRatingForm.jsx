@@ -135,7 +135,7 @@ export function UserRatingForm({
           <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" className="flex-1" disabled={processing || data.rating === 0}>
+          <Button type="submit" className="flex-1 text-white hover:bg-primary-hover" disabled={processing || data.rating === 0}>
             {processing ? "Submitting..." : "Submit Rating"}
           </Button>
         </div>
@@ -145,10 +145,10 @@ export function UserRatingForm({
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-6">
             <div className="rounded-full bg-rose-100 p-3 mb-4">
-              <SmilePlus className="h-6 w-6 text-blue-500" />
+              <SmilePlus className="h-6 w-6 text-primary" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Thank You for Your Rating!</h2>
-            <Button onClick={() => setThanksDialogOpen(false)}>Close</Button>
+            <Button onClick={() => setThanksDialogOpen(false)} className = "text-white">Close</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -157,7 +157,7 @@ export function UserRatingForm({
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-6">
             <div className="rounded-full bg-rose-100 p-3 mb-4">
-              <LogIn className="h-6 w-6 text-blue-500" />
+              <LogIn className="h-6 w-6 text-primary" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
             <p className="text-center text-gray-500 mb-6">You need to login to rate cars or companies.</p>

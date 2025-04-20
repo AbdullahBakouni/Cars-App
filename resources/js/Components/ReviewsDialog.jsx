@@ -33,9 +33,9 @@ function ReviewsDialog({ car }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">
+        <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs  xs-range:text-[9px] xs-range:leading-[8px] xs-s-range:text-[9px] xs-s-range:leading-[8px]">
           View all reviews
-          <ChevronRight className="h-3 w-3 ml-1" />
+          <ChevronRight className="h-2 w-2 ml-1" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md xs-range:max-w-xs xs-s-range:max-w-xs">

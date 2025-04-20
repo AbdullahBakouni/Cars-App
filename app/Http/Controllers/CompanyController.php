@@ -50,10 +50,12 @@ class CompanyController extends Controller
     
         return response()->json(['redirect' => route('companies.show')]);
     }
+
     public function show(Request $request)
 {
     $companyId = session()->get('current_company_id');
-    $company = Company::with([
+   $company = Company::withCount('cars') // هذا بيضيف cars_count تلقائيًا
+    ->with([
         'user.phones' => function ($query) {
             $query->select('user_id', 'number');
         },

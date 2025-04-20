@@ -91,7 +91,8 @@ Route::resource("reviews",ReviewController::class);
 
 Route::resource("company",CompanyController::class);
 
-Route::get('/cars/search', [CarController::class, 'getCarsByBodyType'])->name('cars.byBodyType');
+Route::match(['get', 'post'],'/cars/search', [CarController::class, 'getCarsByBodyType'])->name('cars.byBodyType');
+Route::post('/cars/filter', [CarController::class, 'filterCars'])->name('cars.filters');
 
 Route::get('/set-currency', function (Request $request) {
     session(['currency' => $request->currency]);

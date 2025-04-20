@@ -91,7 +91,7 @@ export function ShareButton() {
     >
       <Popover>
         <PopoverTrigger asChild>
-          <Button className="rounded-full px-6 shadow-lg">
+          <Button className="rounded-full px-6 shadow-lg text-white">
             <Share2 className="mr-2 h-4 w-4" /> Share
           </Button>
         </PopoverTrigger>

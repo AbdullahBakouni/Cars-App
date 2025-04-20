@@ -78,7 +78,7 @@ export default function ResetPassword({ token, email }) {
                     className="mt-2"
                 />
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={processing}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary-hover" disabled={processing}>
               Reset Password
             </Button>
           </form>

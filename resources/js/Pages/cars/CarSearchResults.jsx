@@ -21,7 +21,7 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 import axios from 'axios';
 const NavBar = lazy(() => import("@/Components/NavBar"));
 const RatingStars = lazy(() => import("@/Components/RatingStars"));
-const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
+const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail,filters}) => {
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [sortDialogOpen, setSortDialogOpen] = useState(false)
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
@@ -35,6 +35,17 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
   const currentPage = cars.current_page;
   const totalPages = cars.last_page;
 
+  const formatPrice = (price) => {
+    const format = (num, suffix) => {
+      const formatted = (num).toFixed(1);
+      return (formatted.endsWith('.0') ? parseInt(formatted) : formatted) + suffix;
+    };
+  
+    if (price >= 1_000_000_000) return format(price / 1_000_000_000, 'B');
+    if (price >= 1_000_000) return format(price / 1_000_000, 'M');
+    if (price >= 1_000) return format(price / 1_000, 'K');
+    return price.toString();
+  };
   const handleCardClick = (carId) => {
     axios.post('/cars/session', { car_id: carId })
         .then(response => {
@@ -88,7 +99,8 @@ const CarSearchResults = ({auth,cars,totalResults,hasVerifiedEmail}) => {
         category: queryParams.get("category"),
         currency: currency,
         sort: pendingSortOption,
-        page: currentPage  // Reset to page 1
+        page: currentPage,
+        filters: filters  // Reset to page 1
     }), { preserveState: true });
 };
 
@@ -213,7 +225,8 @@ const getSortLabel = (value) => {
               auth={auth ? auth : ""}  // Ensure it's a string, or provide a default value
               hasVerifiedEmail={hasVerifiedEmail || false}  // Ensure it's a boolean
               currency={currency || "SYP"}  // Ensure it's a string
-              resetpassstatus={resetpassstatus || ""}  // Ensure it's a string
+              resetpassstatus={resetpassstatus || ""}
+              filters = {filters || null}  // Ensure it's a string
             />
               </Suspense>
 
@@ -258,7 +271,7 @@ const getSortLabel = (value) => {
             </div>
             <div className="flex items-center text-sm text-gray-600 mb-2 ">
             <div className='flex items-center gab-1 justify-center'>
-            <span className='font-bold text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]'>{car.mileage} km</span>
+            <span className='font-bold text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]'>{formatPrice(car.mileage)} km</span>
             <span className="mx-1 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">•</span>
             </div>
               <span className="text-xs font-bold xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">
@@ -295,10 +308,8 @@ const getSortLabel = (value) => {
         </div>
         </div>
             <div className="flex items-center justify-between">
-                <span className="text-blue-500 font-medium xs-range:text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px]">
-                    {car.currency === "USD" 
-                    ? new Intl.NumberFormat('en-US').format(car.price).replace(/,/g, '.') + " USD"  
-                    : new Intl.NumberFormat('en-US').format(car.price).replace(/,/g, '.') + " SYP"}
+                <span className="text-primary-hover font-medium xs-range:text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px]">
+                {formatPrice(car.price)} {car.currency}
                 </span>
                 <div className="flex xs-range:text-xs">
                    <Suspense fallback={<div>Loading rating...</div>}>
@@ -315,7 +326,7 @@ const getSortLabel = (value) => {
    {/* Sticky Footer */}
    <div className="fixed bottom-0 left-0 right-0 z-10 bg-white border-t shadow-md h-[42px]">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Button variant="outline" className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white hover:text-white xs-range:p-0
+          <Button variant="outline" className="flex items-center gap-1 bg-primary-hover hover:bg-primary-hover text-white hover:text-white xs-range:p-0
           -mt-3" onClick={() => setSortDialogOpen(true)}>
             <ArrowDownWideNarrow className="h-4 w-4 xs-range:w-1 xs-range:h-1" />
             <span className='xs-range:text-[9px] xs-range:leading-[9px] mr-1'>{sortoption ? getSortLabel(sortoption) : "Posted"}</span>
@@ -353,7 +364,7 @@ const getSortLabel = (value) => {
             {showScrollButton && (
               <Button
                 onClick={scrollToTop}
-                className="rounded-full w-8 h-8 bg-blue-500 hover:bg-blue-600 flex items-center justify-center 
+                className="rounded-full w-8 h-8 bg-primary hover:bg-primary-hover flex items-center justify-center 
                 xs-range:text-[9px] xs-range:leading-[9px] xs-range:p-0 xs-s-range:p-0"
                 aria-label="Scroll to top"
               >
@@ -428,7 +439,7 @@ const getSortLabel = (value) => {
           </RadioGroup>
         </div>
               <div className="flex justify-center">
-              <Button className="w-full bg-blue-500 hover:bg-blue-600" onClick={applySorting}>
+              <Button className="w-full bg-primary hover:bg-primary-hover text-white" onClick={applySorting}>
                   Apply
                 </Button>
               </div>
@@ -439,7 +450,7 @@ const getSortLabel = (value) => {
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-6">
             <div className="rounded-full bg-rose-100 p-3 mb-4">
-              <LogIn className="h-6 w-6 text-blue-500" />
+              <LogIn className="h-6 w-6 text-primary" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
             <p className="text-center text-gray-500 mb-6">You need to login to sell your car on SyartiSy.</p>
@@ -452,7 +463,7 @@ const getSortLabel = (value) => {
       {/* Sell button */}
       {showScrollButton && (
   <Button
-    className="fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full px-8 py-6 bg-blue-500 hover:bg-blue-600 shadow-lg flex items-center justify-center z-50 md:left-auto md:right-6 md:bottom-24"
+    className="fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full px-8 py-6 bg-primary hover:bg-primary-hover text-white shadow-lg flex items-center justify-center z-50 md:left-auto md:right-6 md:bottom-24"
     aria-label="Sell"
     onClick={handleSellCarClick}
   >

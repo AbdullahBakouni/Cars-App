@@ -153,7 +153,7 @@ const Profile = () => {
           </div>
 
           <div className='flex items-center justify-center'>
-            <Button className="w-40 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-normal sm-range:p-1 " disabled={processing}>
+            <Button className="w-40 bg-primary hover:bg-primary-hover text-white rounded-lg font-normal sm-range:p-1 " disabled={processing}>
               Update
             </Button>
           </div>

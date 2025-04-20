@@ -39,7 +39,26 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
      const [currentpage, setCurrentPage] = useState(1)
      const [hasMore, setHasMore] = useState(true)
      const [visibleCars, setVisibleCars] = useState(cars.data);
-   
+     const formatPrice = (price) => {
+      const format = (num, suffix) => {
+        const formatted = (num).toFixed(1);
+        return (formatted.endsWith('.0') ? parseInt(formatted) : formatted) + suffix;
+      };
+    
+      if (price >= 1_000_000_000) return format(price / 1_000_000_000, 'B');
+      if (price >= 1_000_000) return format(price / 1_000_000, 'M');
+      if (price >= 1_000) return format(price / 1_000, 'K');
+      return price.toString();
+    };
+    const isVerifiedCompany =
+  company?.rates >= 4.7 &&
+  company?.cars_count > 20 &&
+  (() => {
+    const createdDate = new Date(company?.created_at);
+    const now = new Date();
+    const diffInMonths = (now.getFullYear() - createdDate.getFullYear()) * 12 + (now.getMonth() - createdDate.getMonth());
+    return diffInMonths >= 7;
+  })();
      const handleCardClick = (carId) => {
       axios.post('/cars/session', { car_id: carId })
           .then(response => {
@@ -214,12 +233,12 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
           <div className="flex items-center gap-4">
             <div className="relative">
               {/* Verification badge behind logo */}
-                {company?.rates >= 4.5 && (
+                {isVerifiedCompany && (
                 <div className="absolute -right-2 -top-2 z-10">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="bg-blue-500 text-white rounded-full p-1 shadow-md">
+                        <div className="bg-primary text-white rounded-full p-1 shadow-md">
                           <CheckCircle className="h-5 w-5" />
                         </div>
                       </TooltipTrigger>
@@ -242,8 +261,8 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
             <div>
               <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">{company.company_name}</h1>
-              {company?.rates >= 4.5 && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              {isVerifiedCompany &&  (
+              <Badge variant="outline" className="bg-red-50 text-primary border-red-200">
                 Verified
               </Badge>
               )}
@@ -269,7 +288,7 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
                     "Show Number"
                     )}
               </Button>
-              <Button className="flex-1 sm:flex-initial" onClick={() => setShowRatingForm(true)}>
+              <Button className="flex-1 sm:flex-initial text-white" onClick={() => setShowRatingForm(true)}>
                 Rate This Company
               </Button>
             </div>
@@ -354,9 +373,9 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
                       <h3 className="font-semibold text-lg">{car.year} {car.brand} {car.model}</h3>
-                      <span className="font-bold text-primary"> {car.currency === "USD" 
-                    ? new Intl.NumberFormat('en-US').format(car.price).replace(/,/g, '.') + " USD"  
-                    : new Intl.NumberFormat('en-US').format(car.price).replace(/,/g, '.') + " SYP"}</span>
+                      <span className="font-bold text-primary">
+                    {formatPrice(car.price)} {car.currency}
+                    </span>
                     </div>
                     <div className="flex items-center mt-1 justify-between">
                      <div className='flex items-center'>
@@ -375,7 +394,7 @@ const CompanyDetails = ({auth,company,cars,hasVerifiedEmail}) => {
                     </div>
                     <div className="flex justify-between mt-3 text-sm text-gray-500 font-semibold">
                       <span>{car.year}</span>
-                      <span>{car.mileage} KM</span>
+                      <span>{formatPrice(car.mileage)} KM</span>
                     </div>
                   </CardContent>
                 </Card>

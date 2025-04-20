@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback } from "./ui/avatar"
 import { Link, router, useForm } from "@inertiajs/react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip';
 import { Badge } from "./ui/badge"
-const CompanyCard = ({company,currentPage}) => {
+const CompanyCard = ({company,currentPage,isVerified }) => {
   const [logoPreview, setLogoPreview] = useState(null)
   const [hasLogo, setHasLogo] = useState(!!company.logo_path)
   const { data, setData, post, processing, errors } = useForm({
@@ -134,12 +134,12 @@ const CompanyCard = ({company,currentPage}) => {
                 className="object-cover"
                 effect="blur" // Optional effect for lazy loading
                 />
-                   {company?.rates >= 4.5 && (
+                   {isVerified && (
                    <div className="absolute -bottom-1 -right-1">
                  <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="bg-blue-500 text-white rounded-full p-[2px] shadow-md">
+                        <div className="bg-primary text-white rounded-full p-[2px] shadow-md">
                           <CheckCircle className="h-5 w-5" />
                         </div>
                       </TooltipTrigger>
@@ -149,17 +149,17 @@ const CompanyCard = ({company,currentPage}) => {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                   )}
+                    )} 
               </div>
               </div>
               <div className="p-4">
                 <div className="flex items-center gap-3"> 
                 <h2 className="text-2xl font-bold">{company.company_name}</h2>
-                {company?.rates >= 4.5 && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                {isVerified  && (
+              <Badge variant="outline" className="bg-red-50 text-primary border-red-200">
                 Verified
               </Badge>
-              )}
+              )} 
                 </div>
                 <div className="flex items-center text-muted-foreground mt-1">
                   <MapPin className="h-4 w-4 mr-1" />
@@ -268,7 +268,7 @@ const CompanyCard = ({company,currentPage}) => {
                     <DialogClose asChild>
                       <Button variant="outline">Cancel</Button>
                     </DialogClose>
-                    <Button type="submit" disabled={processing}>
+                    <Button type="submit" disabled={processing} className = "text-white">
                             Save Changes
                     </Button>
                   </DialogFooter>
@@ -335,7 +335,7 @@ const CompanyCard = ({company,currentPage}) => {
                       <div className="mt-4">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button className="w-full">
+                            <Button className="w-full text-white">
                               <Car className="mr-2 h-4 w-4" />
                               View Cars
                             </Button>

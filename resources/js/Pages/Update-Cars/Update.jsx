@@ -623,7 +623,7 @@ const handleImageUpload = (e) => {
                     onClick={() => handleBodyTypeChange(type.value)}
                   >
                     {isSelected && (
-                      <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                      <div className="absolute top-1 right-1 bg-primary text-white rounded-full p-1">
                         <Check className="h-2 w-2 sm:h-3 sm:w-3" />
                       </div>
                     )}
@@ -844,7 +844,7 @@ const handleImageUpload = (e) => {
           </div>
         </div>
         {/* Submit Button */}
-        <Button className="w-full md:w-auto mt-5 xs-range:mt-2" size="lg"  disabled={processing}>
+        <Button className="w-full md:w-auto mt-5 xs-range:mt-2 text-white hover:bg-primary-hover" size="lg"  disabled={processing}>
                 Update Your Car 
         </Button>
         </form>
@@ -853,7 +853,7 @@ const handleImageUpload = (e) => {
               <DialogContent className="sm:max-w-md">
                 <div className="flex flex-col items-center justify-center py-6">
                   <div className="rounded-full bg-rose-100 p-3 mb-4">
-                    <LogIn className="h-6 w-6 text-blue-500" />
+                    <LogIn className="h-6 w-6 text-primary" />
                   </div>
                   <h2 className="text-xl font-semibold mb-2">Login Required</h2>
                   <p className="text-center text-gray-500 mb-6">You need to login to Rate cars.</p>

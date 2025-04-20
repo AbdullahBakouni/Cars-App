@@ -109,7 +109,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpasssta
 
             <Button
               variant="outline"
-              className="w-full border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+              className="w-full border-primary-hover text-primary-hover hover:bg-red-50 hover:text-primary-hover"
               onClick={() => setShowRegisterForm(true)}
             >
               Create New Account
@@ -119,7 +119,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpasssta
               <span className="text-gray-600">Forgot your password? </span>
               <button
                 onClick={handleForgetPasswordClick}
-                className="text-blue-500 hover:text-blue-600"
+                className="text-primary hover:text-primary-hover"
               >
                 Reset Password
               </button>
@@ -145,7 +145,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpasssta
               <span className="text-gray-600">Already have an account? </span>
               <Button
                 variant="link"
-                className="p-0 h-auto text-blue-500 hover:text-blue-600"
+                className="p-0 h-auto text-primary hover:text-primary-hover"
                 onClick={() => {
                   setShowRegisterForm(false);
                   setShowLoginForm(true);
@@ -200,7 +200,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpasssta
            
             <div className="absolute bottom-0 w-[350px]">
               <div className="mt-auto p-2">
-                         <Button className="w-full bg-[#9f372e] hover:bg-blue-500 text-white text-lg py-6"
+                         <Button className="w-full bg-primary hover:bg-primary-hover  text-white text-lg py-6"
                           onClick={handleSellCarClick}>
                           SELL YOUR CAR
                           </Button>

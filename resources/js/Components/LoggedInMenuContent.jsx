@@ -99,7 +99,7 @@ export default function LoggedInMenuContent({currency}) {
                           }}
                         >
                             <Car className="mr-4 h-5 w-5" />
-                            My Cars <span className="ml-2 text-blue-500 font-semibold">[{carCount}]</span>
+                            My Cars <span className="ml-2 text-primary-hover font-semibold">[{carCount}]</span>
                         </Button>
 
                         <Button variant="ghost" className="w-full justify-start text-base font-normal"
@@ -108,7 +108,7 @@ export default function LoggedInMenuContent({currency}) {
                         }}
                         >
                         <Building2 className="mr-4 h-5 w-5" />
-                            My Company  <span className="ml-2 text-blue-500 font-semibold">[{companyCount}]</span>
+                            My Company  <span className="ml-2 text-primary-hover font-semibold">[{companyCount}]</span>
                         </Button>
 
                         <div className="space-y-2">
@@ -142,7 +142,7 @@ export default function LoggedInMenuContent({currency}) {
                         </Select>
                         </div>
                        <div className="mt-auto p-6" onClick={handleSellCarClick}>
-                         <Button className="w-full bg-blue-400 hover:bg-blue-500 text-white text-lg py-6 xs-range:py-2 -mt-10">
+                         <Button className="w-full bg-primary hover:bg-primary-hover text-white text-lg py-6 xs-range:py-2 -mt-10">
                           SELL YOUR CAR
                          </Button>
                     </div>

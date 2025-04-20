@@ -59,7 +59,7 @@ export default function Login() {
                         </Link>
                     )} */}
                              </div>
-                    <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                    <Button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white">
                      Login
                       </Button>
                
