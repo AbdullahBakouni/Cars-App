@@ -102,4 +102,40 @@ select:focus {
   }
 }
 
+@keyframes squishAndRecover {
+  0% {
+    transform: translateY(3rem) scaleX(7.4) scaleY(0.2) rotate(-64deg);
+    opacity: 0.9;
+  }
+  90% {
+    transform: translateY(0.4rem) scaleX(1.3) scaleY(0.6) rotate(-20deg);
+  }
+  100% {
+    transform: translateY(0) scaleX(1) scaleY(1) rotate(0deg);
+  }
+}
+
+@keyframes squishAndRecoverMobile {
+  0% {
+    transform: translateY(1rem) scaleX(7.4) scaleY(0.2) rotate(-200deg);
+    opacity: 0.9;
+  }
+  90% {
+    transform: translateY(0.4rem) scaleX(1.3) scaleY(0.6) rotate(-70deg);
+  }
+  100% {
+    transform: translateY(0) scaleX(1) scaleY(1) rotate(0deg);
+  }
+}
+
+.animate-squish {
+  animation: squishAndRecover 2s ease-out forwards;
+}
+
+/* للشاشات الصغيرة */
+@media (max-width: 640px) {
+  .animate-squish {
+    animation: squishAndRecoverMobile 2s ease-out forwards;
+  }
+}
 

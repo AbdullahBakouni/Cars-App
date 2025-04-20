@@ -166,24 +166,35 @@ export default function Welcome({
                     </div>
 
                     {/* Car Image and Overlay */}
-                    <div className="relative w-full md:h-[500px] flex items-center justify-center bg-gray-200 md:-mt-12 xs-range:bg-gray-50">
-                        <div className="absolute inset-0 -top-[44px] right-12 flex items-center justify-center">
-                            <div className="text-4xl md:text-6xl font-bold text-gray-800 flex items-center xs-range:text-3xl">
-                                <span className="text-[#9f372e]">X</span>
-                                <span>Cars</span>
-                                <span className="text-[#9f372e]">.</span>
-                                <span>com</span>
-                                <span className="mx-8 text-[#9f372e]">|</span>
-                                <span>Syria</span>
+                    <div className="relative w-full md:h-[400px] flex items-center justify-center bg-gray-200 md:-mt-12 xs-range:bg-gray-50">
+                        <div className="relative w-[400px] h-[300px] flex items-center justify-center xs-s-range:w-[200px] xs-s-range:h-[200px] xs-range:w-[200px] xs-range:h-[200px]">
+                            {/* Left Text */}
+                            <div className="absolute left-[-130px] top-[62%] -translate-y-1/2 flex items-center space-x-1 text-2xl md:text-4xl font-bold text-gray-800 xs-s-range:left-[-65px] xs-s-range:top-[60%]  xs-range:left-[-80px] xs-range:top-[60%]">
+                                <span className="flex items-center text-gray-800 font-bold text-2xl md:text-2xl xs-s-range:text-xs xs-range:text-sm">
+                                    <span className="text-primary">X</span>
+                                    <span>Motors</span>
+                                    <span className="text-primary">.</span>
+                                    <span>co</span>
+                                    <span className="relative inline-block -ml-0 animate-squish">
+                                        m
+                                    </span>
+                                </span>
                             </div>
+
+                            {/* Right Text */}
+                            <div className="absolute right-[-75px] top-[60%] -translate-y-1/2 flex items-center text-2xl md:text-2xl font-bold text-primary xs-s-range:text-xs xs-s-range:right-[-30px] xs-range:text-sm xs-range:right-[-40px]">
+                                <span className="mx-2">||</span>
+                                <span className="text-gray-800">Syria</span>
+                            </div>
+
+                            {/* Car Image */}
+                            <LazyLoadImage
+                                src="images/911.png"
+                                alt="Luxury Car"
+                                className="object-contain w-full h-full"
+                                effect="blur"
+                            />
                         </div>
-                        <img
-                            src="https://sayartii.com/static/img/s-car.webp"
-                            alt="Luxury Car"
-                            width="600"
-                            height="500"
-                            className="object-contain"
-                        />
                     </div>
 
                     {/* Search Box */}

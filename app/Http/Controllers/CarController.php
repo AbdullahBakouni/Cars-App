@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -545,19 +546,22 @@ class CarController extends Controller
     return response()->json([
         'count' => $query->count(),
     ]);
-}
-
-private function getExchangeRate($base = 'USD')
+}private function getExchangeRate($base = 'USD')
 {
-    $apiUrl = env('EXCHANGE_API_URL', 'https://v6.exchangerate-api.com/v6/f22811ef8e6bb9fb048a16a6/latest/USD');
+    $cacheKey = "exchange_rates_$base";
+    
+    // نخزّن النتائج لمدة 24 ساعة
+    return Cache::remember($cacheKey, now()->addHours(24), function () use ($base) {
+        $apiUrl =("https://v6.exchangerate-api.com/v6/f22811ef8e6bb9fb048a16a6/latest/$base");
 
-    $response = Http::get("$apiUrl/$base");
+        $response = Http::get($apiUrl);
 
-    if ($response->ok()) {
-        return $response->json()['rates'];
-    }
+        if ($response->ok() && isset($response->json()['conversion_rates'])) {
+            return $response->json()['conversion_rates'];
+        }
 
-    return null;
+        return null;
+    });
 }
 
     public function getCarsByBodyType(Request $request)
@@ -570,14 +574,21 @@ private function getExchangeRate($base = 'USD')
     $sortBy = $request->query('sort', 'posted');
     $categoryName = $request->query('category');
     $price = $request->query('maxPrice');
-
+    $targetCurrency = $request->query('currency') ?? ($filters['currency'] ?? null);
+    // $shouldConvertCurrency = $targetCurrency && empty($filters['pricefrom']) && empty($filters['priceto']) && empty($price);
     $selectFields = ['id', 'brand', 'model', 'year', 'mileage', 'description', 'rates', 'price', 'currency', 'status', 'rental_type', 'condition'];
-
+    // dd( $rates = $this->getExchangeRate($targetCurrency === 'USD' ? 'SYP' : 'USD'));
     // 🔋 إذا التصنيف يتطلب cylinders
     $categoriesRequiringCylinders = ['Elecrtic', 'Sport', 'SuperCars', 'Adventure'];
     if (in_array($categoryName, $categoriesRequiringCylinders)) {
         $selectFields[] = 'cylinders';
     }
+    ;
+
+
+
+// ✅ إذا لازم نحول الأسعار
+
 
     $query = Car::select($selectFields)
         ->with([
@@ -602,7 +613,6 @@ private function getExchangeRate($base = 'USD')
         'brand_name' => 'brand',
         'model_name' => 'model',
         'body_type'  => 'body_type',
-        'currency'   => 'currency',
         'status'     => 'status',
         'rental_type'=> 'rental_type',
         'condition'  => 'condition',
@@ -620,89 +630,192 @@ private function getExchangeRate($base = 'USD')
         }
     }
 
-    // 🔢 فلترة بالسنة
-    if (!empty($filters['yearfrom'])) {
-        $query->where('year', '>=', $filters['yearfrom']);
-    }
-    if (!empty($filters['yearto'])) {
-        $query->where('year', '<=', $filters['yearto']);
-    }
+    if (!empty($filters['yearfrom'])) $query->where('year', '>=', $filters['yearfrom']);
+    if (!empty($filters['yearto'])) $query->where('year', '<=', $filters['yearto']);
+    if (!empty($filters['mileagefrom'])) $query->where('mileage', '>=', $filters['mileagefrom']);
+    if (!empty($filters['mileageto'])) $query->where('mileage', '<=', $filters['mileageto']);
 
-    // 💰 فلترة بالسعر
-    if (!empty($filters['pricefrom'])) {
-        $query->where('price', '>=', $filters['pricefrom']);
+    // 💰 فلترة بالسعر مع التحويل
+    if (!empty($filters['pricefrom']) || !empty($filters['priceto'])) {
+        $exchangeRates = $this->getExchangeRate('USD');
+    
+        $query->where(function ($q) use ($filters, $exchangeRates, $targetCurrency) {
+            $from = $filters['pricefrom'] ?? 0;
+            $to = $filters['priceto'] ?? PHP_INT_MAX;
+    
+            $q->where(function ($subQ) use ($from, $to, $targetCurrency) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$from, $to]);
+            })->orWhere(function ($subQ) use ($from, $to, $exchangeRates, $targetCurrency) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $rate = $exchangeRates[$targetCurrency] ?? 1;
+    
+                $convertedFrom = $from / $rate;
+                $convertedTo = $to / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedFrom, $convertedTo]);
+            });
+        });
     }
-    if (!empty($filters['priceto'])) {
-        $query->where('price', '<=', $filters['priceto']);
-    }
+    
 
-    // 📊 فلترة بالكيلومترات
-    if (!empty($filters['mileagefrom'])) {
-        $query->where('mileage', '>=', $filters['mileagefrom']);
-    }
-    if (!empty($filters['mileageto'])) {
-        $query->where('mileage', '<=', $filters['mileageto']);
-    }
-
-    // 🧩 فلترة حسب الفئة
+    $exchangeRates = $this->getExchangeRate('USD'); // أو خزنه مرة بأعلى الدالة
+    $rate = $exchangeRates[$targetCurrency] ?? 1;
+    
     match ($categoryName) {
-        'Economy' => $query->where(function ($q) {
-            $q->where('currency', 'SYP')->whereBetween('price', [20_000_000, 60_000_000]);
-        })->orWhere(function ($q) {
-            $q->where('currency', 'USD')->whereBetween('price', [2_000, 6_000]);
+        'Economy' => $query->where(function ($q) use ($targetCurrency, $rate) {
+            $min = 2000;
+            $max = 6000;
+    
+            $q->where(function ($subQ) use ($targetCurrency, $min, $max) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$min, $max]);
+            })->orWhere(function ($subQ) use ($targetCurrency, $rate, $min, $max) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $convertedMin = $min / $rate;
+                $convertedMax = $max / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedMin, $convertedMax]);
+            });
         }),
+    
+        'Luxury' => $query->where('body_type', 'sedan')->where(function ($q) use ($targetCurrency, $rate) {
+            $min = 100000;
+            $max = 220000;
+    
+            $q->where(function ($subQ) use ($targetCurrency, $min, $max) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$min, $max]);
+            })->orWhere(function ($subQ) use ($targetCurrency, $rate, $min, $max) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $convertedMin = $min / $rate;
+                $convertedMax = $max / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedMin, $convertedMax]);
+            });
+        }),
+    
+        'Sport' => $query->where('body_type', 'coupe')->whereIn('cylinders', [6, 8, 10])->where(function ($q) use ($targetCurrency, $rate) {
+            $min = 50000;
+            $max = 510000;
+    
+            $q->where(function ($subQ) use ($targetCurrency, $min, $max) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$min, $max]);
+            })->orWhere(function ($subQ) use ($targetCurrency, $rate, $min, $max) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $convertedMin = $min / $rate;
+                $convertedMax = $max / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedMin, $convertedMax]);
+            });
+        }),
+    
+        'SuperCars' => $query->where('body_type', 'coupe')->whereIn('cylinders', [8, 10, 12, 16])->where(function ($q) use ($targetCurrency, $rate) {
+            $min = 60000;
+            $max = 120000;
+    
+            $q->where(function ($subQ) use ($targetCurrency, $min, $max) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$min, $max]);
+            })->orWhere(function ($subQ) use ($targetCurrency, $rate, $min, $max) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $convertedMin = $min / $rate;
+                $convertedMax = $max / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedMin, $convertedMax]);
+            });
+        }),
+    
+        'Adventure' => $query->where('body_type', 'suv')->whereIn('cylinders', [6, 8])->where(function ($q) use ($targetCurrency, $rate) {
+            $min = 30000;
+            $max = 60000;
+    
+            $q->where(function ($subQ) use ($targetCurrency, $min, $max) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$min, $max]);
+            })->orWhere(function ($subQ) use ($targetCurrency, $rate, $min, $max) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $convertedMin = $min / $rate;
+                $convertedMax = $max / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedMin, $convertedMax]);
+            });
+        }),
+    
         'Family' => $query->where('body_type', 'suv')->whereIn('doors', [4, 5]),
         'Elecrtic' => $query->where('cylinders', 'Electric'),
-        'Luxury' => $query->where('body_type', 'sedan')->where(function ($q) {
-            $q->where(function ($qq) {
-                $qq->where('currency', 'SYP')->whereBetween('price', [100_000_000, 1_200_000_000]);
-            })->orWhere(function ($qq) {
-                $qq->where('currency', 'USD')->whereBetween('price', [100_000, 220_000]);
-            });
-        }),
-        'Sport' => $query->where('body_type', 'coupe')->where(function ($q) {
-            $q->whereIn('cylinders', [6, 8, 10])->where(function ($qq) {
-                $qq->where('currency', 'SYP')->whereBetween('price', [50_000_000, 100_000_000]);
-            })->orWhere(function ($qq) {
-                $qq->where('currency', 'USD')->whereBetween('price', [50_000, 510_000]);
-            });
-        }),
-        'SuperCars' => $query->where('body_type', 'coupe')->where(function ($q) {
-            $q->whereIn('cylinders', [8, 10, 12, 16])->where(function ($qq) {
-                $qq->where('currency', 'SYP')->whereBetween('price', [60_000_000, 140_000_000]);
-            })->orWhere(function ($qq) {
-                $qq->where('currency', 'USD')->whereBetween('price', [60_000, 120_000]);
-            });
-        }),
-        'Adventure' => $query->where('body_type', 'suv')->where(function ($q) {
-            $q->whereIn('cylinders', [6, 8])->where(function ($qq) {
-                $qq->where('currency', 'SYP')->whereBetween('price', [30_000_000, 60_000_000]);
-            })->orWhere(function ($qq) {
-                $qq->where('currency', 'USD')->whereBetween('price', [30_000, 60_000]);
-            });
-        }),
         'Utility' => $query->where(function ($q) {
             $q->where('body_type', 'minivan')->orWhere('body_type', 'pickup');
         }),
+    
         default => null,
     };
+    
+ // 👇 تأكد من وجود قيمة للعملة، وإذا ما في، خليها USD
+ $targetCurrency = in_array($targetCurrency, ['USD', 'SYP']) ? $targetCurrency : 'USD';
 
-    // 💰 استثناء إذا بس في سعر وما في فلاتر أخرى
-    if (empty($filters['brand_name']) && empty($filters['model_name']) && empty($filters['body_type']) && $price !== null) {
-        if (!is_numeric($price)) {
-            return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
-        }
-
-        $cars = Car::select($selectFields)
-            ->when($filters['currency'] === 'SYP', fn($q) => $q->whereBetween('price', [$price - 10000000, $price + 10000000]))
-            ->when($filters['currency'] === 'USD', fn($q) => $q->whereBetween('price', [$price - 1000, $price + 1000]))
-            ->where('currency', $filters['currency'])
-            ->orderByRaw("ABS(price - ?)", [$price])
-            ->with(['images' => fn($q) => $q->select('car_id', 'image_path')->limit(1), 'tags'])
-            ->paginate(40);
-    } else {
-        $cars = $query->paginate(10);
+ // ✅ نجيب العملة الأخرى بناءً على العملة المطلوبة
+ $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+ 
+ // ✅ نجيب سعر الصرف من العملة الأخرى للعملة المطلوبة
+ $rates = $this->getExchangeRate($otherCurrency);
+ 
+ // ✅ نحسب معدل التحويل
+ $rate = $rates[$targetCurrency] ?? 1;
+ if (empty($filters['brand_name']) && empty($filters['model_name']) && empty($filters['body_type']) && $price !== null) {
+    if (!is_numeric($price)) {
+        return back()->withErrors(['price' => 'يجب إدخال سعر صحيح.']);
     }
+
+    $exchangeRates = $this->getExchangeRate('USD');
+    $rateForFiltering = $exchangeRates[$targetCurrency] ?? 1;
+
+    $cars = Car::select($selectFields)
+        ->where(function ($q) use ($price, $rateForFiltering, $targetCurrency) {
+            $q->where(function ($subQ) use ($price, $targetCurrency) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$price - 1000, $price + 1000]);
+            })->orWhere(function ($subQ) use ($price, $rateForFiltering, $targetCurrency) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $convertedPrice = $price / $rateForFiltering;
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedPrice - 1000, $convertedPrice + 1000]);
+            });
+        })
+        ->orderByRaw("ABS(price - ?)", [$price])
+        ->with(['images' => fn($q) => $q->select('car_id', 'image_path')->limit(1), 'tags'])
+        ->paginate(40);
+} else {
+    $cars = $query->paginate(40);
+}
+   
+ 
+
+// 💰 نعدل الأسعار إذا احتاج الأمر
+if ($rate && $rate > 0) {
+    $cars->setCollection(
+        $cars->getCollection()->transform(function ($car) use ($targetCurrency, $rate) {
+            if ($car->currency !== $targetCurrency) {
+                if ($car->currency === 'USD') {
+                    $car->price = $car->price * $rate;
+                } else {
+                    $car->price = $car->price / $rate;
+                }
+                $car->currency = $targetCurrency;
+            }
+            return $car;
+        })
+    );
+}
+
+        
     return Inertia::render('cars/CarSearchResults', [
         'cars' => $cars,
         'totalResults' => $cars->total(),
