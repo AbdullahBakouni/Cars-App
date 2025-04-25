@@ -1,6 +1,6 @@
 import { Head, router, usePage } from "@inertiajs/react";
 import { useState, useEffect, Suspense, lazy, useRef } from "react";
-import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn, Star } from "lucide-react";
+import { ArrowDownWideNarrow, ChevronUp, Eye, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,8 +24,8 @@ import {
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
 import axios from "axios";
+import RatingStars from "@/Components/RatingStars";
 const NavBar = lazy(() => import("@/Components/NavBar"));
-const RatingStars = lazy(() => import("@/Components/RatingStars"));
 const CarSearchResults = ({
     auth,
     cars,
@@ -330,7 +330,7 @@ const CarSearchResults = ({
                                             <div>
                                                 {car.tags &&
                                                 car.tags.length > 0 ? (
-                                                    <div className="flex gap-1 justify-center">
+                                                    <div className="flex gap-1 justify-center" key={car.tags.id}>
                                                         {car.tags
                                                             .slice(0, 2)
                                                             .map((tag) => (
@@ -383,19 +383,11 @@ const CarSearchResults = ({
                                                 {car.currency}
                                             </span>
                                             <div className="flex xs-range:text-xs">
-                                                <Suspense
-                                                    fallback={
-                                                        <div>
-                                                            Loading rating...
-                                                        </div>
-                                                    }
-                                                >
-                                                    <RatingStars
-                                                        rating={car.rates || ""}
-                                                        size="sm"
-                                                        interactive={false}
-                                                    />
-                                                </Suspense>
+                                                <RatingStars
+                                                    rating={car.rates || ""}
+                                                    size="sm"
+                                                    interactive={false}
+                                                />
                                             </div>
                                         </div>
                                     </CardContent>
@@ -475,7 +467,7 @@ const CarSearchResults = ({
                                     <Button
                                         onClick={scrollToTop}
                                         className="rounded-full w-8 h-8 bg-primary hover:bg-primary-hover flex items-center justify-center 
-                xs-range:text-[9px] xs-range:leading-[9px] xs-range:p-0 xs-s-range:p-0"
+                xs-range:text-[9px] xs-range:leading-[9px] xs-range:p-0 xs-s-range:p-0 text-white"
                                         aria-label="Scroll to top"
                                     >
                                         <ChevronUp className="h-4 w-4 xs-range:h-1 xs-range:w-1" />

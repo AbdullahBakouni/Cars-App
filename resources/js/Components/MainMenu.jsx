@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,15 +12,23 @@ import ForgotPassword from "@/components/ForgotPassword";
 
 import { Inertia } from '@inertiajs/inertia';
 import { router } from "@inertiajs/react";
+import { emitter } from "@/Pages/utils/event";
 
 
 const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpassstatus}) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showForgetPassword, setShowForgetPassword] = useState(false);
- // The login state (false means logged out)
+  const [open, setOpen] = useState(false);
 
-// Show the menu and login content by default if login === false
+  useEffect(() => {
+    // عند استقبال الحدث، نفتح الـ sheet
+    const handler = () => setOpen(true);
+    emitter.on("openSheet", handler);
+    return () => {
+      emitter.off("openSheet", handler);
+    };
+  }, []);
   const handleCurrencyChange = (value) => {
     router.get(route("setCurrency"), { currency: value }, { preserveState: true, preserveScroll: true });
 };
@@ -44,7 +52,7 @@ const MainMenu = ({ authuser , status , hasVerifiedEmail , currency,resetpasssta
   };
   return (
     <>
-      <Sheet >
+        <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button variant="outline" className="hidden md:inline-flex">
             Menu

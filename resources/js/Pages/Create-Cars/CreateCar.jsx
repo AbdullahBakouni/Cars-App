@@ -409,18 +409,16 @@ export default function CreateCar({ auth, hasVerifiedEmail }) {
                 <div className="max-w-4xl mx-auto p-4 space-y-8 xs-range:p-2 xs-range:space-y-0 xs-range:max-w-[400px] xs-range:h-full overflow-y-auto overflow-x-hidden">
                     <div className="flex flex-col items-center justify-center space-y-2 mb-8 xs-range:mb-4">
                         <div className="flex justify-center mb-2 xs-range:mb-2">
-                            <div className="logo-container">
-                                <Link
-                                    href="/"
-                                    className="flex items-center gap-1"
-                                >
-                                    <div className="font-bold text-2xl text-gray-800">
-                                        <span className="text-primary">X</span>
-                                        <span>Motors</span>
-                                        <span className="text-primary">.</span>
-                                        <span>com</span>
-                                    </div>
-                                </Link>
+                            <div
+                                className="logo-container cursor-pointer"
+                                onClick={handleLogoClick}
+                            >
+                                <div className="font-bold text-2xl text-gray-800">
+                                    <span className="text-primary">X</span>
+                                    <span>Motors</span>
+                                    <span className="text-primary">.</span>
+                                    <span>com</span>
+                                </div>
                             </div>
                         </div>
                         <h1 className="text-xl md:text-2xl font-bold text-center">

@@ -152,4 +152,18 @@ Route::middleware(CustomAuthenticate::class)->put('/company/{company}', [Company
 Route::post('/cars/my/status-update', [CarController::class, 'updateStatus'])->name('cars.updateStatus');
 
 
+Route::get('/recent-cars', [CarController::class, 'recentCars'])->name("recent_cars");
+
+
+Route::get('/aboutus', function () {
+    return Inertia::render('AboutUs');
+});
+
+
+Route::get('/notice', function () {
+    return Inertia::render('Terms');
+});
+
+
+
 require __DIR__.'/auth.php';

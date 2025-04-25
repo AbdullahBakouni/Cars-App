@@ -493,65 +493,12 @@ class CarController extends Controller
         ]);
     }
 
-    public function filterCars(Request $request)
-{
-    $filters = $request->all();
-    $query = Car::query();
-
-    foreach ([
-        'brand_name' => 'brand',
-        'model_name' => 'model',
-        'body_type'  => 'body_type',
-        'currency'   => 'currency',
-        'status'     => 'status',
-        'rental_type'=> 'rental_type',
-        'condition'  => 'condition',
-        'doors'      => 'doors',
-        'cylinders'  => 'cylinders',
-        'engine'     => 'engine',
-        'transmission'=> 'transmission',
-        'fuel'       => 'fuel',
-        'color'      => 'color',
-        'location'   => 'location',
-    ] as $param => $column) {
-        $value = $request->query($param, $filters[$param] ?? null);
-        if (!empty($value)) {
-            $query->where($column, $value);
-        }
-    }
-
-    // 🔢 فلترة بالسنة
-    if (!empty($filters['yearfrom'])) {
-        $query->where('year', '>=', $filters['yearfrom']);
-    }
-    if (!empty($filters['yearto'])) {
-        $query->where('year', '<=', $filters['yearto']);
-    }
-
-    // 💰 فلترة بالسعر
-    if (!empty($filters['pricefrom'])) {
-        $query->where('price', '>=', $filters['pricefrom']);
-    }
-    if (!empty($filters['priceto'])) {
-        $query->where('price', '<=', $filters['priceto']);
-    }
-
-    // 📊 فلترة بالكيلومترات
-    if (!empty($filters['mileagefrom'])) {
-        $query->where('mileage', '>=', $filters['mileagefrom']);
-    }
-    if (!empty($filters['mileageto'])) {
-        $query->where('mileage', '<=', $filters['mileageto']);
-    }
-    return response()->json([
-        'count' => $query->count(),
-    ]);
-}private function getExchangeRate($base = 'USD')
+private function getExchangeRate($base = 'USD')
 {
     $cacheKey = "exchange_rates_$base";
     
     // نخزّن النتائج لمدة 24 ساعة
-    return Cache::remember($cacheKey, now()->addHours(24), function () use ($base) {
+    return Cache::remember($cacheKey, now()->addDays(5), function () use ($base) {
         $apiUrl =("https://v6.exchangerate-api.com/v6/f22811ef8e6bb9fb048a16a6/latest/$base");
 
         $response = Http::get($apiUrl);
@@ -562,6 +509,87 @@ class CarController extends Controller
 
         return null;
     });
+}
+
+public function filterCars(Request $request)
+{
+    $filters = $request->all();
+    $query = Car::query();
+
+    // ➤ الفلاتر العامة
+    foreach ([
+        'brand_name'  => 'brand',
+        'model_name'  => 'model',
+        'body_type'   => 'body_type',
+        'status'      => 'status',
+        'rental_type' => 'rental_type',
+        'condition'   => 'condition',
+        'doors'       => 'doors',
+        'cylinders'   => 'cylinders',
+        'engine'      => 'engine',
+        'transmission'=> 'transmission',
+        'fuel'        => 'fuel',
+        'color'       => 'color',
+        'location'    => 'location',
+    ] as $param => $column) {
+        $value = $request->query($param, $filters[$param] ?? null);
+        if (!empty($value)) {
+            $query->where($column, $value);
+        }
+    }
+
+    // ➤ فلترة بالسنة
+    if (!empty($filters['yearfrom'])) {
+        $query->where('year', '>=', $filters['yearfrom']);
+    }
+    if (!empty($filters['yearto'])) {
+        $query->where('year', '<=', $filters['yearto']);
+    }
+
+    // 🔄 تجهيز تحويل العملة (للسعر)
+    $targetCurrency = $request->query('currency', $filters['currency'] ?? 'USD');
+    $targetCurrency = in_array($targetCurrency, ['USD', 'SYP']) ? $targetCurrency : 'USD';
+    $otherCurrency  = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+    $rates          = $this->getExchangeRate($otherCurrency);
+
+    // ➤ فلترة بالسعر (من و إلى) بعد تحويل القيم
+    if (!empty($filters['pricefrom']) || !empty($filters['priceto'])) {
+        $exchangeRates = $this->getExchangeRate('USD');
+    
+        $query->where(function ($q) use ($filters, $exchangeRates, $targetCurrency) {
+            $from = $filters['pricefrom'] ?? 0;
+            $to = $filters['priceto'] ?? PHP_INT_MAX;
+    
+            $q->where(function ($subQ) use ($from, $to, $targetCurrency) {
+                $subQ->where('currency', $targetCurrency)
+                     ->whereBetween('price', [$from, $to]);
+            })->orWhere(function ($subQ) use ($from, $to, $exchangeRates, $targetCurrency) {
+                $otherCurrency = $targetCurrency === 'USD' ? 'SYP' : 'USD';
+                $rate = $exchangeRates[$targetCurrency] ?? 1;
+    
+                $convertedFrom = $from / $rate;
+                $convertedTo = $to / $rate;
+    
+                $subQ->where('currency', $otherCurrency)
+                     ->whereBetween('price', [$convertedFrom, $convertedTo]);
+            });
+        });
+    }
+
+    // ➤ فلترة بالكيلومترات
+    if (!empty($filters['mileagefrom'])) {
+        $query->where('mileage', '>=', $filters['mileagefrom']);
+    }
+    if (!empty($filters['mileageto'])) {
+        $query->where('mileage', '<=', $filters['mileageto']);
+    }
+
+    // ➤ جلب العدد بعد كل الشروط
+    $count = $query->count();
+
+    return response()->json([
+        'count' => $count,
+    ]);
 }
 
     public function getCarsByBodyType(Request $request)
@@ -593,7 +621,7 @@ class CarController extends Controller
     $query = Car::select($selectFields)
         ->with([
             'images' => fn($q) => $q->select('car_id', 'image_path')->limit(1),
-            'tags' => fn($q) => $q->select('car_id', 'name')->limit(2),
+            'tags' => fn($q) => $q->select('id','car_id', 'name')->limit(2),
             'company'
         ]);
 
@@ -945,6 +973,37 @@ if ($rate && $rate > 0) {
     session(['current_car_id' => $request->car_id]);
 
     return response()->json(['redirect' => route('cars.show')]);
+}
+
+public function recentCars(Request $request)
+{
+
+    $cars = Car::with([
+        'images' => function ($query) {
+            $query->select('car_id', 'image_path')->limit(1);
+        },
+        'tags' => fn($q) => $q->select('id','car_id', 'name')->limit(2),
+    ])
+    ->orderBy('created_at', 'desc')
+    ->limit(12)
+    ->get([
+        'id',
+        'year',
+        'price',
+        'mileage',
+        'description',
+        'rental_type',
+        'rates',
+        'brand',
+        'model',
+        'currency',
+        'status',
+        'created_at',
+    ]);
+
+    return response()->json([
+        'data' => $cars,
+    ]);
 }
 
 }

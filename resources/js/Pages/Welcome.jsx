@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Car, Truck, Bus, Package, LogIn } from "lucide-react";
+import { Car, Truck, Bus, Package, LogIn, Eye } from "lucide-react";
 import carData from "./cars";
 import NavBar from "@/Components/NavBar";
 import { Inertia } from "@inertiajs/inertia";
-import { usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Dialog, DialogContent, DialogTitle } from "@/Components/ui/dialog";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
+import axios from "axios";
+import { Card, CardContent } from "@/Components/ui/card";
+import RatingStars from "@/Components/RatingStars";
+import ContactBanner from "@/Components/ContactBanner";
+import Footer from "@/Components/Footer";
 export default function Welcome({
     auth,
     hasVerifiedEmail,
@@ -20,6 +25,7 @@ export default function Welcome({
     const { currency } = usePage().props;
     const { resetpassstatus } = usePage().props;
     const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+    const [cars, setCars] = useState([]);
     const bodyTypes = [
         { id: "coupe", label: "COUPE", icon: <Car className="w-6 h-6" /> },
         { id: "sedan", label: "SEDAN", icon: <Car className="w-6 h-6" /> },
@@ -86,15 +92,50 @@ export default function Welcome({
             image: "/images/utility.jpg",
         },
     ];
-
+    const handleCardClick = (carId) => {
+        axios
+            .post("/cars/session", { car_id: carId })
+            .then((response) => {
+                const redirectUrl = response.data.redirect;
+                router.visit(redirectUrl);
+            })
+            .catch((error) => {
+                console.error("Failed to set car session:", error);
+            });
+    };
     useEffect(() => {
         if (message && message_type) {
             setLoginDialogOpen(true);
         }
     }, [message, message_type]);
+
+    const formatPrice = (price) => {
+        const format = (num, suffix) => {
+            const formatted = num.toFixed(1);
+            return (
+                (formatted.endsWith(".0") ? parseInt(formatted) : formatted) +
+                suffix
+            );
+        };
+
+        if (price >= 1_000_000_000) return format(price / 1_000_000_000, "B");
+        if (price >= 1_000_000) return format(price / 1_000_000, "M");
+        if (price >= 1_000) return format(price / 1_000, "K");
+        return price.toString();
+    };
+    useEffect(() => {
+        async function fetchRecentCars() {
+            try {
+                const response = await axios.get(route("recent_cars"));
+                setCars(response.data.data);
+            } catch (err) {
+                console.error("Error fetching recent cars:", err);
+            }
+        }
+
+        fetchRecentCars();
+    }, []);
     const handleBodyTypeClick = (typeId) => {
-        // Inertia.visit(route("cars.byBodyType", { body_type: typeId },
-        //   {currency: currency === null ? 'SYP' : currency}));
         Inertia.visit(route("cars.byBodyType"), {
             method: "get",
             data: {
@@ -106,8 +147,6 @@ export default function Welcome({
     };
 
     const handleBrandNameClick = (brandName) => {
-        // Inertia.visit(route("cars.byBodyType", { brand_name: brandName },
-        //   {currency: currency === null ? 'SYP' : currency}));
         Inertia.visit(route("cars.byBodyType"), {
             method: "get",
             data: {
@@ -127,8 +166,6 @@ export default function Welcome({
     };
 
     const handleCategoryClick = (categoryName) => {
-        // Inertia.visit(route('cars.byBodyType', { category: categoryName },
-        //   {currency: currency === null ? 'SYP' : currency}));
         Inertia.visit(route("cars.byBodyType"), {
             method: "get",
             data: {
@@ -147,6 +184,7 @@ export default function Welcome({
                     hasVerifiedEmail={hasVerifiedEmail}
                     currency={currency}
                     resetpassstatus={resetpassstatus}
+                    
                 />
 
                 {/* Main Content */}
@@ -286,7 +324,7 @@ export default function Welcome({
 
                     <div className="pt-5">
                         <div className="mb-2 text-center">
-                            <h2 className="text-lg font-bold text-gray-800 italic">
+                            <h2 className="text-2xl font-bold text-gray-800 italic">
                                 FEATURED CARS
                             </h2>
                             <p className="text-xs text-gray-600">
@@ -389,6 +427,149 @@ export default function Welcome({
                     </div>
                 </div>
 
+                <div className="pt-5">
+                    <div className="mb-2 text-center">
+                        <h2 className="text-2xl font-bold text-gray-800 italic">
+                            Latest Cars
+                        </h2>
+                        <Link
+                            className="text-primary-hover font-semibold text-xs"
+                            href="/cars/search"
+                        >
+                            View All
+                        </Link>
+                        <p className="text-lg text-gray-600">
+                            Most Recently Posted
+                        </p>
+                    </div>
+                </div>
+                <div className="container mx-auto p-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {cars.map((car) => (
+                            <Card
+                                key={car.id}
+                                className="overflow-hidden hover:shadow-lg transition-shadow h-full"
+                            >
+                                <div className="relative w-full aspect-square bg-gray-100 overflow-hidden rounded-md">
+                                    {/* Image as background layer */}
+                                    {car.images && car.images.length > 0 && (
+                                        <LazyLoadImage
+                                            src={`/storage/${car.images[0].image_path}`}
+                                            alt={`${car.year} ${car.brand} ${car.model}`}
+                                            className="w-full h-full object-cover aspect-square"
+                                            effect="blur"
+                                        />
+                                    )}
+
+                                    {/* Button on top */}
+                                    <div className="absolute top-2 right-2 z-10">
+                                        <button
+                                            className="w-8 h-8 bg-white/80 rounded-full flex items-center justify-center xs-range:w-5 xs-range:h-5"
+                                            onClick={() =>
+                                                handleCardClick(car.id)
+                                            }
+                                        >
+                                            <Eye className="w-4 h-4 text-gray-500" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <CardContent className="p-3">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-medium text-lg xs-range:text-sm xs-s-range:text-[9px] xs-s-range:leading-[8px]">
+                                            {car.year} {car.brand} {car.model}
+                                        </h3>
+                                    </div>
+                                    <div className="flex items-center text-sm text-gray-600 mb-2 ">
+                                        <div className="flex items-center gab-1 justify-center">
+                                            <span className="font-bold text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
+                                                {formatPrice(car.mileage)} km
+                                            </span>
+                                            <span className="mx-1 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
+                                                •
+                                            </span>
+                                        </div>
+                                        <span className="text-xs font-bold xs-s-range:text-[8px] xs-s-range:leading-[8px] xs-range:text-[10px] xs-range:leading-[10px]">
+                                            {car.description &&
+                                            car.description.split(" ").length >
+                                                4
+                                                ? `${car.description
+                                                      .split(" ")
+                                                      .slice(0, 4)
+                                                      .join(" ")}...`
+                                                : car.description}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-sm text-gray-500 mb-2 xs-s-range:text-[9px] xs-s-range:leading-[8px] xs-range:text-[12px] xs-range:leading-[12px]">
+                                        <div>
+                                            {car.tags && car.tags.length > 0 ? (
+                                                <div
+                                                    className="flex gap-1 justify-center"
+                                                    key={car.tags.id}
+                                                >
+                                                    {car.tags
+                                                        .slice(0, 2)
+                                                        .map((tag) => (
+                                                            <span
+                                                                key={tag.id}
+                                                                className="bg-gray-200 px-2 py-1 rounded-full text-gray-600 text-[10px] leading-[9px]"
+                                                            >
+                                                                {tag.name
+                                                                    .split(" ")
+                                                                    .slice(0, 2)
+                                                                    .join(" ")}
+                                                            </span>
+                                                        ))}
+                                                    {car.tags.length > 2 && (
+                                                        <span className="text-[9px] leading-[8px] text-gray-500">
+                                                            +
+                                                            {car.tags.length -
+                                                                2}{" "}
+                                                            more
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="bg-gray-200 px-2 py-1 rounded-full text-gray-500 text-[10px] leading-[9px]">
+                                                    {car.condition}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <span className="bg-gray-200 px-2 py-1 rounded-full text-gray-500 text-[10px] leading-[9px]">
+                                                For {car.status}
+                                                {car.rental_type
+                                                    ? ` · ${car.rental_type}`
+                                                    : ""}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-primary-hover font-medium xs-range:text-xs xs-s-range:text-[8px] xs-s-range:leading-[8px]">
+                                            {formatPrice(car.price)}{" "}
+                                            {car.currency}
+                                        </span>
+                                        <div className="flex xs-range:text-xs">
+                                            <RatingStars
+                                                rating={car.rates || ""}
+                                                size="sm"
+                                                interactive={false}
+                                            />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="container mx-auto pt-4 px-4 py-12">
+                <div className="max-w-6xl mx-auto">
+                    <ContactBanner />
+                    </div>
+                </div>
+
+                <Footer/>
                 {message && message_type && (
                     <Dialog
                         open={loginDialogOpen}
